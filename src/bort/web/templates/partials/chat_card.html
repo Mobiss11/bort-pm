@@ -1,0 +1,19 @@
+<div class="chat-card">
+  <div class="chat-head">
+    <span class="badge kind-{{ c.kind }}">{{ c.kind|label('chat_kinds') }}</span>
+    <strong>{{ c.title }}</strong>
+    <button class="btn btn-tiny link-danger" hx-delete="/ui/projects/{{ project_id }}/chats/{{ c.id }}"
+            hx-target="#chats-block" hx-swap="outerHTML"
+            hx-confirm="Отвязать чат «{{ c.title }}» от проекта? (чат останется в справочнике)">Отвязать</button>
+  </div>
+  <div class="chat-body">
+    {% if c.tg_chat_id %}<div class="kv">TG ID: <code>{{ c.tg_chat_id }}</code></div>{% endif %}
+    {% if c.tg_link %}<a href="{{ c.tg_link }}" target="_blank" rel="noreferrer">Открыть в Telegram</a>{% endif %}
+    {% if c.link_note %}<div class="muted">{{ c.link_note }}</div>{% endif %}
+    {% if c.members %}
+    <div class="kv muted">Участники:
+      {% for m in c.members %}{{ m.full_name }}{% if m.role %} ({{ m.role }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+    </div>
+    {% else %}<div class="kv muted">Участники не отмечены</div>{% endif %}
+  </div>
+</div>

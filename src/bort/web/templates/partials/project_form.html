@@ -1,0 +1,48 @@
+<form class="inline-form" hx-post="/ui/projects" hx-target="#project-form-box" hx-swap="innerHTML">
+  <input type="hidden" name="scope" value="{{ scope|default('open') }}">
+  <input type="hidden" name="q" value="{{ q|default('') }}">
+  {% if form_error %}<div class="form-error">{{ form_error }}</div>{% endif %}
+  {% if created %}<div class="form-ok">Проект создан</div>{% endif %}
+  <div class="form-grid">
+    <label class="span2">Название
+      <input name="name" required maxlength="200" placeholder="Название проекта" value="{{ form_values.get('name','') }}">
+    </label>
+    <label>Статус
+      <select name="status">
+        {% for item in enums.project_statuses %}
+        <option value="{{ item.code }}" {{ 'selected' if form_values.get('status','idea') == item.code else '' }}>{{ item.title_ru }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Приоритет
+      <select name="priority">
+        {% for item in enums.priorities %}
+        <option value="{{ item.code }}" {{ 'selected' if form_values.get('priority','2')|int == item.code else '' }}>{{ item.title_ru }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Стоимость, ₽
+      <input name="deal" inputmode="decimal" placeholder="150 000,50" value="{{ form_values.get('deal','') }}">
+    </label>
+    <label>Валюта
+      <select name="currency">
+        <option value="RUB" selected>RUB</option>
+        <option value="USD" {{ 'selected' if form_values.get('currency') == 'USD' else '' }}>USD</option>
+        <option value="EUR" {{ 'selected' if form_values.get('currency') == 'EUR' else '' }}>EUR</option>
+      </select>
+    </label>
+    <label>Дедлайн
+      <input type="date" name="deadline" value="{{ form_values.get('deadline','') }}">
+    </label>
+    <label>Старт
+      <input type="date" name="started_on" value="{{ form_values.get('started_on','') }}">
+    </label>
+    <label class="span2">Заметки
+      <input name="notes" placeholder="Необязательно" value="{{ form_values.get('notes','') }}">
+    </label>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Создать</button>
+    <button type="button" class="btn" onclick="document.getElementById('project-form-box').innerHTML=''">Отмена</button>
+  </div>
+</form>

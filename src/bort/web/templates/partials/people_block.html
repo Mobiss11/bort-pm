@@ -1,0 +1,35 @@
+<div>
+  {% if form_error %}<div class="form-error">{{ form_error }}</div>{% endif %}
+  {% if attached_people %}
+  <table class="people-table">
+    <thead><tr><th>Человек</th><th>TG</th><th>Роль</th><th></th></tr></thead>
+    <tbody>
+    {% for person in attached_people %}
+    <tr>
+      <td>{{ person.full_name }}</td>
+      <td>{% if person.tg_username %}<code>@{{ person.tg_username }}</code>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td>{{ person.role or '' }}</td>
+      <td><button class="btn btn-tiny link-danger"
+                  hx-delete="/ui/projects/{{ project_id }}/people/{{ person.person_id }}"
+                  hx-target="#project-people-block" hx-swap="outerHTML">Отвязать</button></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-soft">Люди не привязаны</div>
+  {% endif %}
+
+  <form class="inline-form compact" hx-post="/ui/projects/{{ project_id }}/people"
+        hx-target="#project-people-block" hx-swap="outerHTML">
+    <label>Привязать человека
+      <select name="person_id" {% if not free_people %}disabled{% endif %}>
+        {% for person in free_people %}
+        <option value="{{ person.id }}">{{ person.full_name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Роль <input name="role" placeholder="заказчик / разработчик"></label>
+    <button type="submit" class="btn btn-small" {% if not free_people %}disabled{% endif %}>Привязать</button>
+  </form>
+</div>

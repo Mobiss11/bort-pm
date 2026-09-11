@@ -1,0 +1,26 @@
+<section class="stats-grid">
+  <div class="total-card">
+    <div class="total-label">Проекты</div>
+    <div class="stat-value">{{ totals.projects_count }}</div>
+  </div>
+  <div class="total-card">
+    <div class="total-label">Стоимость</div>
+    <div class="stat-value">{{ totals.deal_total_minor|rub(totals.currency) }}</div>
+  </div>
+  <div class="total-card">
+    <div class="total-label">Затраты</div>
+    <div class="stat-value">{{ totals.expenses_total_minor|rub(totals.currency) }}</div>
+  </div>
+  <div class="total-card {{ 'negative' if totals.margin_total_minor < 0 else '' }}">
+    <div class="total-label">Маржа</div>
+    <div class="stat-value">{{ totals.margin_total_minor|rub(totals.currency) }}</div>
+  </div>
+</section>
+
+<div class="alert-chips">
+  <span class="chip chip-red">Просрочено: {{ totals.overdue_count }}</span>
+  <span class="chip chip-orange">Горит: {{ totals.hot_count }}</span>
+  {% if totals.excluded_projects %}
+  <span class="chip chip-muted">Вне агрегатов ({{ totals.currency }}): {% for e in totals.excluded_projects %}{{ e.name }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
+  {% endif %}
+</div>

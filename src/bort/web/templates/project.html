@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ p.name }} — Борт{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div id="project-head-box">
+    {% include "partials/project_head.html" %}
+  </div>
+  <a class="btn" href="/">← К сводке</a>
+</div>
+
+<section class="money-block">
+  <div class="total-card">
+    <div class="total-label">Стоимость</div>
+    <div class="total-value big">{{ p.deal_amount_minor|rub(p.currency) }}</div>
+  </div>
+  <div class="total-card">
+    <div class="total-label">Затраты</div>
+    <div class="total-value big">{{ s.expenses_minor|rub(p.currency) }}</div>
+  </div>
+  <div class="total-card">
+    <div class="total-label">Оплачено</div>
+    <div class="total-value big">{{ s.paid_minor|rub(p.currency) }}</div>
+  </div>
+  <div class="total-card {{ 'negative' if s.margin_minor < 0 else '' }}">
+    <div class="total-label">Маржа</div>
+    <div class="total-value big">{{ s.margin_minor|rub(p.currency) }}</div>
+  </div>
+</section>
+
+<section class="card-section" id="payments-block">
+  <div class="section-title">Оплата</div>
+  {% include "partials/payments_block.html" %}
+</section>
+
+<section class="notes">
+  <div class="section-title">Заметки <span class="muted">— сохраняются при расфокусе</span></div>
+  <div id="notes-block">
+    {% include "partials/notes_block.html" %}
+  </div>
+</section>
+
+<div data-tabs class="tabs-block">
+  <div class="tabs">
+    <button class="tab active" data-tab="tasks">Задачи</button>
+    <button class="tab" data-tab="expenses">Затраты</button>
+    <button class="tab" data-tab="chats">Чаты и люди</button>
+  </div>
+
+  {% include "partials/tasks_block.html" %}
+
+  {% with panel_hidden = True %}
+  {% include "partials/expenses_block.html" %}
+  {% endwith %}
+
+  <section data-tab-panel="chats" hidden>
+    <div id="chats-block">
+      {% include "partials/chats_block.html" %}
+    </div>
+    <div id="project-people-block">
+      {% include "partials/people_block.html" %}
+    </div>
+  </section>
+</div>
+{% endblock %}

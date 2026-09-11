@@ -1,0 +1,41 @@
+{% set seq = kanban_statuses %}
+<div class="kanban">
+  {% for status in seq %}
+  {% set column_tasks = tasks|selectattr('status', 'equalto', status)|list %}
+  <div class="kanban-col col-{{ status }}">
+    <div class="kanban-col-head">
+      <span class="kanban-col-title">{{ status|label('task_statuses') }}</span>
+      <span class="kanban-count">{{ column_tasks|length }}</span>
+    </div>
+
+    {% for t in column_tasks %}
+    {% set idx = seq.index(status) %}
+    <div class="kanban-card {{ 'is-done' if status == 'done' else '' }}" draggable="true" data-task-id="{{ t.id }}">
+      <div class="kanban-card-top">
+        <span class="prio-dot prio-{{ t.priority }}" title="{{ t.priority|label('priorities') }}"></span>
+        <span class="kanban-title" title="{{ t.title }}">{{ t.title }}</span>
+      </div>
+      {% if t.deadline %}
+      <span class="days d-{{ t.deadline|dl_state }}">{{ t.deadline|date_ru }} · {{ t.deadline|days_left_str }}</span>
+      {% endif %}
+      <div class="kanban-actions">
+        {% if idx > 0 %}
+        <button type="button" class="btn btn-tiny" title="← {{ seq[idx-1]|label('task_statuses') }}"
+                hx-post="/ui/tasks/{{ t.id }}/status" hx-vals='{"status": "{{ seq[idx-1] }}", "view": "kanban", "q": "{{ q }}"}'
+                hx-target="#kanban-block" hx-swap="outerHTML">←</button>
+        {% endif %}
+        {% if idx < seq|length - 1 %}
+        <button type="button" class="btn btn-tiny btn-primary" title="{{ seq[idx+1]|label('task_statuses') }} →"
+                hx-post="/ui/tasks/{{ t.id }}/status" hx-vals='{"status": "{{ seq[idx+1] }}", "view": "kanban", "q": "{{ q }}"}'
+                hx-target="#kanban-block" hx-swap="outerHTML">→</button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+    {% if not column_tasks %}
+    <div class="kanban-empty">пусто</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>

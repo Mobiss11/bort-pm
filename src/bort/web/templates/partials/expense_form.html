@@ -1,0 +1,24 @@
+<form class="inline-form compact" hx-post="/ui/projects/{{ project_id }}/expenses"
+      hx-target="#expenses-block" hx-swap="outerHTML">
+  <div class="form-grid">
+    <label>Сумма
+      <input name="amount" required inputmode="decimal" placeholder="150 000,50" value="{{ form_values.get('amount','') }}">
+    </label>
+    <label>Категория
+      <select name="category_code">
+        {% for c in categories %}
+        <option value="{{ c.code }}" {{ 'selected' if form_values.get('category_code','other') == c.code else '' }}>{{ c.title_ru }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Дата
+      <input type="date" name="spent_on" required value="{{ form_values.get('spent_on', today_iso) }}">
+    </label>
+    <label class="span2">Комментарий
+      <input name="comment" placeholder="За что" value="{{ form_values.get('comment','') }}">
+    </label>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary btn-small">Добавить</button>
+  </div>
+</form>

@@ -1,0 +1,7 @@
+{% if backup_message and backup_message.startswith('Бэкап создан') %}
+<div class="form-ok">{{ backup_message }}</div>
+{% elif backup_message %}
+<div class="form-error">{{ backup_message }}</div>
+{% else %}
+<div class="muted">Копия делается через sqlite3 .backup, хранятся 14 последних</div>
+{% endif %}

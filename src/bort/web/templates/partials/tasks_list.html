@@ -1,0 +1,20 @@
+<div id="tasks-list">
+  {% if form_error %}<div class="form-error">{{ form_error }}</div>{% endif %}
+  {% if tasks %}
+  <table class="tasks">
+    <thead><tr><th>Статус</th><th>Задача</th><th>Приоритет</th><th>Дедлайн</th></tr></thead>
+    <tbody>
+    {% for t in tasks %}
+    {% include "partials/task_row.html" %}
+    {% endfor %}
+    </tbody>
+  </table>
+  {% elif q %}
+  <div class="empty-soft">Нет задач по запросу «{{ q }}»</div>
+  {% else %}
+  <div class="empty-soft">Задачи не ведутся</div>
+  {% endif %}
+</div>
+{% if oob_kanban %}
+{% include "partials/kanban_block.html" %}
+{% endif %}

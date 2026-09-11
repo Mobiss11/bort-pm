@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Настройки — Борт{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Настройки</h1></div>
+
+<section class="settings-grid">
+  <div class="settings-card">
+    <div class="section-title">Общие</div>
+    <div class="kv">Базовая валюта: <strong>{{ base_currency }}</strong></div>
+    <div class="kv">Часовой пояс: <strong>{{ tz }}</strong></div>
+    <div class="kv">Путь к БД: <code>{{ db_path }}</code></div>
+    <div class="kv">Версия схемы: <strong>{{ schema_version }}</strong></div>
+  </div>
+
+  <div class="settings-card">
+    <div class="section-title">Категории затрат</div>
+    <table class="people-table">
+      <thead><tr><th>Код</th><th>Название</th><th>Порядок</th><th>Активна</th></tr></thead>
+      <tbody>
+      {% for c in categories %}
+      <tr>
+        <td><code>{{ c.code }}</code></td>
+        <td>{{ c.title_ru }}</td>
+        <td>{{ c.sort_order }}</td>
+        <td>{{ 'да' if c.is_active else 'скрыта' }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <div class="muted">Редактирование категорий появится на этом экране отдельно</div>
+  </div>
+
+  <div class="settings-card">
+    <div class="section-title">Резервная копия</div>
+    <button class="btn" hx-post="/ui/settings/backup" hx-target="#backup-result" hx-swap="innerHTML">Сделать бэкап</button>
+    <div id="backup-result" style="margin-top: 8px">
+      <div class="muted">Копия делается через sqlite3 .backup, хранятся 14 последних</div>
+    </div>
+  </div>
+</section>
+{% endblock %}

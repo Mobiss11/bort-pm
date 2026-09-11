@@ -1,0 +1,22 @@
+<form class="inline-form compact" hx-post="/ui/projects/{{ project_id }}/tasks"
+      hx-target="#tasks-block" hx-swap="outerHTML">
+  <input type="hidden" name="q" value="{{ q|default('') }}">
+  <div class="form-grid">
+    <label class="span2">Задача
+      <input name="title" required maxlength="300" placeholder="Что сделать">
+    </label>
+    <label>Приоритет
+      <select name="priority">
+        {% for item in enums.priorities %}
+        <option value="{{ item.code }}" {{ 'selected' if form_values.get('priority','3')|int == item.code else '' }}>{{ item.title_ru }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Дедлайн
+      <input type="date" name="deadline" value="{{ form_values.get('deadline','') }}">
+    </label>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary btn-small">Добавить</button>
+  </div>
+</form>

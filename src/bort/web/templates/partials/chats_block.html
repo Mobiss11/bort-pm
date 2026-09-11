@@ -1,0 +1,56 @@
+<div>
+  {% if form_error %}<div class="form-error">{{ form_error }}</div>{% endif %}
+  {% if chats %}
+  <div class="chat-list">
+    {% for c in chats %}
+    {% include "partials/chat_card.html" %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-soft">К проекту не привязан ни один чат</div>
+  {% endif %}
+
+  <div class="attach-row">
+    <form class="inline-form compact" hx-post="/ui/projects/{{ project_id }}/chats"
+          hx-target="#chats-block" hx-swap="outerHTML">
+      <label>Привязать из справочника
+        <select name="chat_id">
+          {% for c in free_chats %}
+          <option value="{{ c.id }}">{{ c.title }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Заметка <input name="note" placeholder="зачем этот чат"></label>
+      <button type="submit" class="btn btn-small" {% if not free_chats %}disabled{% endif %}>Привязать</button>
+    </form>
+  </div>
+
+  <details class="disclosure">
+    <summary class="btn btn-small">+ Новый чат</summary>
+    <form class="inline-form compact" hx-post="/ui/projects/{{ project_id }}/chats"
+          hx-target="#chats-block" hx-swap="outerHTML">
+      <div class="form-grid">
+        <label>Название
+          <input name="title" required placeholder="Например: Проект X — рабочая группа">
+        </label>
+        <label>Тип
+          <select name="kind">
+            {% for item in enums.chat_kinds %}
+            <option value="{{ item.code }}" {{ 'selected' if item.code == 'group' else '' }}>{{ item.title_ru }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>TG ID
+          <input name="tg_chat_id" placeholder="-1001234567890">
+        </label>
+        <label>Ссылка
+          <input name="tg_link" placeholder="https://t.me/...">
+        </label>
+        <label>Заметка <input name="note" placeholder="зачем этот чат"></label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary btn-small">Создать и привязать</button>
+      </div>
+    </form>
+  </details>
+</div>

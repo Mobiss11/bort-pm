@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Чаты — Борт{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Чаты</h1></div>
+
+<form class="filters" autocomplete="off">
+  <input type="search" name="q" value="{{ q }}" placeholder="Поиск по названию…">
+</form>
+
+<div id="chats-list" class="chat-list">
+  {% include "partials/chats_page_list.html" %}
+</div>
+
+<details class="disclosure">
+  <summary class="btn btn-small">+ Чат</summary>
+  <form class="inline-form compact" method="post" action="/ui/chats">
+    <div class="form-grid">
+      <label>Название <input name="title" required></label>
+      <label>Тип
+        <select name="kind">
+          {% for item in enums.chat_kinds %}
+          <option value="{{ item.code }}" {{ 'selected' if item.code == 'group' else '' }}>{{ item.title_ru }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>TG ID <input name="tg_chat_id" placeholder="-1001234567890"></label>
+      <label>Ссылка <input name="tg_link" placeholder="https://t.me/..."></label>
+    </div>
+    <div class="form-actions"><button class="btn btn-primary btn-small">Создать</button></div>
+  </form>
+</details>
+
+<details class="disclosure">
+  <summary class="btn btn-small">+ Человек в справочник</summary>
+  <form class="inline-form compact" method="post" action="/ui/people">
+    <div class="form-grid">
+      <label>Имя <input name="full_name" required></label>
+      <label>TG username <input name="tg_username" placeholder="без @"></label>
+    </div>
+    <div class="form-actions"><button class="btn btn-primary btn-small">Добавить</button></div>
+  </form>
+</details>
+{% endblock %}

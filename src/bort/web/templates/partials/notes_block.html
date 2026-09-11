@@ -1,0 +1,6 @@
+<div id="notes-block">
+  <textarea name="notes" rows="5" data-autogrow placeholder="Свободный текст по проекту…"
+            hx-post="/ui/projects/{{ project_id }}/notes"
+            hx-trigger="blur changed" hx-swap="outerHTML">{{ notes or '' }}</textarea>
+  {% if saved_at %}<div class="saved-stamp">Сохранено {{ saved_at }}</div>{% endif %}
+</div>

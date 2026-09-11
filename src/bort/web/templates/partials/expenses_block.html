@@ -1,0 +1,39 @@
+<section id="expenses-block" data-tab-panel="expenses" {% if panel_hidden|default(false) %}hidden{% endif %}>
+<div>
+  {% if form_error %}<div class="form-error">{{ form_error }}</div>{% endif %}
+  <table class="expenses">
+    <thead><tr><th>Дата</th><th>Категория</th><th class="num">Сумма</th><th>Комментарий</th><th></th></tr></thead>
+    <tbody>
+    {% for e in expenses %}
+    {% include "partials/expense_row.html" %}
+    {% endfor %}
+    {% if not expenses %}
+    <tr><td colspan="5" class="empty-soft">Затрат пока нет</td></tr>
+    {% endif %}
+    </tbody>
+    <tfoot>
+    <tr>
+      <td colspan="2">Итого</td>
+      <td class="num money">{{ expenses_total_minor|rub }}</td>
+      <td></td>
+    </tr>
+    </tfoot>
+  </table>
+
+  {% if expenses_by_category %}
+  <div class="cat-breakdown">
+    <span class="muted">По категориям:</span>
+    {% for c in expenses_by_category %}
+    <span class="cat-chip">{{ cat_titles.get(c.category_code, c.category_code) }} — {{ c.total_minor|rub }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <details class="disclosure" {% if form_error %}open{% endif %}>
+    <summary class="btn btn-small">+ Затрата</summary>
+    {% with form_values=form_values|default({}) %}
+    {% include "partials/expense_form.html" %}
+    {% endwith %}
+  </details>
+</div>
+</section>

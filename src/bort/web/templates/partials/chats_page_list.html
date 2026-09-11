@@ -1,0 +1,45 @@
+{% for entry in chats %}
+<div class="chat-card">
+  <div class="chat-head">
+    <span class="badge kind-{{ entry.chat.kind }}">{{ entry.chat.kind|label('chat_kinds') }}</span>
+    <strong>{{ entry.chat.title }}</strong>
+  </div>
+  <div class="chat-body">
+    {% if entry.chat.tg_chat_id %}<div class="kv">TG ID: <code>{{ entry.chat.tg_chat_id }}</code></div>{% endif %}
+    {% if entry.chat.tg_link %}<a href="{{ entry.chat.tg_link }}" target="_blank" rel="noreferrer">Открыть в Telegram</a>{% endif %}
+    {% if entry.chat.projects %}
+    <div class="kv muted">Проекты:
+      {% for pr in entry.chat.projects %}<a href="/projects/{{ pr.id }}">{{ pr.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+    </div>
+    {% else %}<div class="kv muted">Ни к одному проекту не привязан</div>{% endif %}
+
+    <div class="kv">Участники:</div>
+    {% if entry.chat.members %}
+    <ul class="member-list">
+      {% for m in entry.chat.members %}
+      <li>
+        {{ m.full_name }}{% if m.role %} <span class="muted">— {{ m.role }}</span>{% endif %}
+        <button class="btn btn-tiny link-danger"
+                hx-delete="/ui/chats/{{ entry.chat.id }}/members/{{ m.person_id }}"
+                hx-target="#chats-list" hx-swap="innerHTML">убрать</button>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<div class="muted">пока никого</div>{% endif %}
+
+    <form class="member-form" hx-post="/ui/chats/{{ entry.chat.id }}/members"
+          hx-target="#chats-list" hx-swap="innerHTML">
+      <select name="person_id" {% if not entry.free_people %}disabled{% endif %}>
+        {% for person in entry.free_people %}
+        <option value="{{ person.id }}">{{ person.full_name }}{% if person.tg_username %} (@{{ person.tg_username }}){% endif %}</option>
+        {% endfor %}
+      </select>
+      <input name="role" placeholder="роль">
+      <button type="submit" class="btn btn-small" {% if not entry.free_people %}disabled{% endif %}>+ Участник</button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+{% if not chats %}
+<div class="empty-soft">Чатов пока нет</div>
+{% endif %}

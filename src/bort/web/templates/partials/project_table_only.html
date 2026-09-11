@@ -1,0 +1,37 @@
+{# Таблица проектов одного раздела. projects = строки; во вложенном включении closed_section = True. #}
+<table class="projects">
+  <thead>
+  <tr>
+    <th>Проект</th>
+    <th>Статус</th>
+    <th>Приоритет</th>
+    <th>Дедлайн</th>
+    <th class="num">Стоимость</th>
+    <th class="num">Оплачено</th>
+    <th class="num">Затраты</th>
+    <th class="num">Маржа</th>
+    <th>Задачи</th>
+  </tr>
+  </thead>
+  <tbody id="{% if closed_section %}projects-tbody-closed{% else %}projects-tbody{% endif %}">
+  {% for p in projects %}
+  {% include "partials/project_row.html" %}
+  {% endfor %}
+  {% if not projects and closed_section %}
+  <tr><td colspan="9" class="empty">Закрытых проектов пока нет</td></tr>
+  {% elif not projects and q %}
+  <tr><td colspan="9" class="empty">Нет проектов по запросу «{{ q }}»</td></tr>
+  {% elif not projects %}
+  <tr><td colspan="9" class="empty">Пока нет проектов. Нажмите «+ Проект».</td></tr>
+  {% endif %}
+  </tbody>
+</table>
+{% if not closed_section and scope == 'open' and closed_projects %}
+<div class="section-title closed-section-title">
+  Закрытые · {{ closed_projects|length }}
+  <span class="muted">· маржа {{ closed_totals.margin_total_minor|rub(closed_totals.currency) }}</span>
+</div>
+<div class="closed-table">
+  {% with projects = closed_projects, closed_section = True %}{% include "partials/project_table_only.html" %}{% endwith %}
+</div>
+{% endif %}

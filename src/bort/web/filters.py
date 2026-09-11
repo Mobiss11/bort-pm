@@ -1,0 +1,108 @@
+"""Jinja-фильтры: деньги, даты, русские подписи.
+
+Подписи статусов/приоритетов берутся из одного источника — ENUMS в api/meta.py
+(тот же словарь отдаёт /api/v1/meta/enums).
+"""
+
+from .. import dates, money
+from .api.meta import ENUMS
+
+STATE_TITLES = {
+    "overdue": "Просрочен",
+    "hot": "Горит",
+    "soon": "Скоро дедлайн",
+    "normal": "",
+    "none": "",
+}
+
+
+def rub(minor, currency: str = "RUB") -> str:
+    """15000050 → «150 000,50 ₽»."""
+    try:
+        return money.format_rub(int(minor), currency)
+    except (TypeError, ValueError):
+        return "—"
+
+
+def date_ru(value) -> str:
+    """«2026-09-20» → «20.09.2026»; пустое → «—»."""
+    try:
+        d = dates.parse_date(value)
+    except ValueError:
+        return "—"
+    return d.strftime("%d.%m.%Y") if d else "—"
+
+
+def datetime_ru(value) -> str:
+    """ISO UTC → «09.09.2026 13:45»."""
+    if not value:
+        return "—"
+    s = str(value)
+    try:
+        return f"{s[8:10]}.{s[5:7]}.{s[0:4]} {s[11:16]}"
+    except IndexError:
+        return s
+
+
+def days_left_str(value, today=None) -> str:
+    """Дней до дедлайна: «сегодня», «+3 дн», «−2 дн», «—»."""
+    try:
+        dl = dates.days_left(value, today)
+    except ValueError:
+        return "—"
+    if dl is None:
+        return "—"
+    if dl == 0:
+        return "сегодня"
+    sign = "+" if dl > 0 else "−"
+    return f"{sign}{abs(dl)} дн"
+
+
+def label(code, group: str) -> str:
+    """Русская подпись кода из справочника ENUMS.
+
+    Вызов в шаблоне: {{ t.status|label('task_statuses') }} — Jinja передаёт
+    значение первым аргументом, группу вторым.
+    """
+    for item_code, item_title in ENUMS.get(group, []):
+        if item_code == code:
+            return item_title
+    return str(code) if code is not None else "—"
+
+
+def state_title(state: str) -> str:
+    return STATE_TITLES.get(state, "")
+
+
+def dl_state(value) -> str:
+    """Класс состояния дедлайна задачи: overdue/hot/soon/normal/none."""
+    try:
+        return dates.deadline_state(value)
+    except ValueError:
+        return "none"
+
+
+def progress(done, total) -> str:
+    """«5/12»; задач нет → «—» (проект без задач — норма, не 0%)."""
+    if not total:
+        return "—"
+    return f"{done}/{total}"
+
+
+def pct(done, total):
+    """Процент прогресса или None, если задач нет."""
+    if not total:
+        return None
+    return round(int(done) / int(total) * 100)
+
+
+def register_filters(env) -> None:
+    env.filters["rub"] = rub
+    env.filters["date_ru"] = date_ru
+    env.filters["datetime_ru"] = datetime_ru
+    env.filters["days_left_str"] = days_left_str
+    env.filters["label"] = label
+    env.filters["state_title"] = state_title
+    env.filters["dl_state"] = dl_state
+    env.filters["progress"] = progress
+    env.filters["pct"] = pct

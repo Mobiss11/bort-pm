@@ -1,0 +1,8 @@
+<tbody id="projects-tbody" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+{% for p in projects %}
+{% include "partials/project_row.html" %}
+{% endfor %}
+{% if not projects %}
+<tr><td colspan="9" class="empty">Пока нет проектов{% if q %} по запросу «{{ q }}»{% endif %}. Нажмите «+ Проект».</td></tr>
+{% endif %}
+</tbody>

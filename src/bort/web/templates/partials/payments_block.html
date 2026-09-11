@@ -1,0 +1,73 @@
+<div class="payments-grid">
+  <div class="total-card">
+    <div class="total-label">Договор</div>
+    <div class="total-value">{{ deal_amount_minor|rub }}</div>
+  </div>
+  <div class="total-card">
+    <div class="total-label">Оплачено</div>
+    <div class="total-value paid">{{ paid_total_minor|rub }}</div>
+  </div>
+  <div class="total-card {{ 'negative' if remaining_minor > 0 else '' }}">
+    <div class="total-label">Осталось</div>
+    <div class="total-value">{{ remaining_minor|rub }}</div>
+  </div>
+  <div class="total-card">
+    <div class="total-label">Прогресс оплаты</div>
+    <div class="total-value">{{ payment_progress ~ '%' if payment_progress is not none else '—' }}</div>
+    <div class="progress pay-progress"><div class="bar" style="width: {{ payment_progress if payment_progress is not none else 0 }}%"></div></div>
+  </div>
+</div>
+
+{% if form_error %}<div class="form-error">{{ form_error }}</div>{% endif %}
+
+{% if payments %}
+<table class="payments-table">
+  <thead><tr><th>Дата</th><th>Вид</th><th class="num">Сумма</th><th>Комментарий</th><th></th></tr></thead>
+  <tbody>
+  {% for pay in payments %}
+  <tr>
+    <td class="nowrap">{{ pay.paid_on|date_ru }}</td>
+    <td><span class="badge pay-{{ pay.kind }}">{{ kind_labels.get(pay.kind, pay.kind) }}</span></td>
+    <td class="num money">{{ pay.amount_minor|rub }}</td>
+    <td class="muted">{{ pay.comment or '' }}</td>
+    <td><button type="button" class="btn btn-tiny link-danger"
+                hx-delete="/ui/projects/{{ project_id }}/payments/{{ pay.id }}"
+                hx-target="#payments-block" hx-swap="outerHTML"
+                hx-confirm="Удалить платёж {{ pay.amount_minor|rub }}?">Удалить</button></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-soft">Платежей пока нет</div>
+{% endif %}
+
+<details class="disclosure" {% if form_error %}open{% endif %}>
+  <summary class="btn btn-small">+ Платёж</summary>
+  <form class="inline-form compact" hx-post="/ui/projects/{{ project_id }}/payments"
+        hx-target="#payments-block" hx-swap="outerHTML">
+    {% with form_values=form_values|default({}) %}
+    <div class="form-grid">
+      <label>Сумма
+        <input name="amount" required inputmode="decimal" placeholder="150 000,50" value="{{ form_values.get('amount','') }}">
+      </label>
+      <label>Вид платежа
+        <select name="kind">
+          {% for code, title in kind_labels.items() %}
+          <option value="{{ code }}" {{ 'selected' if form_values.get('kind','partial') == code else '' }}>{{ title }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Дата
+        <input type="date" name="paid_on" required value="{{ form_values.get('paid_on', today_iso) }}">
+      </label>
+      <label>Комментарий
+        <input name="comment" placeholder="необязательно" value="{{ form_values.get('comment','') }}">
+      </label>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary btn-small">Добавить платёж</button>
+    </div>
+    {% endwith %}
+  </form>
+</details>

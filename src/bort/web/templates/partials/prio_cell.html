@@ -1,0 +1,7 @@
+<select class="prio-edit prio-{{ p.priority }}" name="priority"
+        hx-post="/ui/projects/{{ p.id }}/fields" hx-target="closest tr" hx-swap="outerHTML"
+        title="Сменить приоритет">
+  {% for code, title in enums.priorities %}
+  <option value="{{ code }}" {{ 'selected' if p.priority == code else '' }}>{{ title }}</option>
+  {% endfor %}
+</select>

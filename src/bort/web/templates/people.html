@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Люди — Борт{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Люди</h1></div>
+
+<form class="filters" autocomplete="off">
+  <input type="search" name="q" value="{{ q }}" placeholder="Имя или @username…">
+</form>
+
+<table class="people-table wide">
+  <thead><tr><th>Имя</th><th>TG</th><th>Заметки</th></tr></thead>
+  <tbody>
+  {% for person in items %}
+  <tr>
+    <td>{{ person.full_name }}</td>
+    <td>{% if person.tg_username %}<code>@{{ person.tg_username }}</code>{% else %}<span class="muted">—</span>{% endif %}</td>
+    <td class="muted">{{ person.notes or '' }}</td>
+  </tr>
+  {% endfor %}
+  {% if not items %}<tr><td colspan="3" class="empty-soft">Пока никого нет</td></tr>{% endif %}
+  </tbody>
+</table>
+
+<details class="disclosure">
+  <summary class="btn btn-small">+ Человек</summary>
+  <form class="inline-form compact" method="post" action="/ui/people">
+    <div class="form-grid">
+      <label>Имя <input name="full_name" required></label>
+      <label>TG username <input name="tg_username" placeholder="без @"></label>
+    </div>
+    <div class="form-actions"><button class="btn btn-primary btn-small">Добавить</button></div>
+  </form>
+</details>
+{% endblock %}

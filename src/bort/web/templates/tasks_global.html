@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Задачи — Борт{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Задачи</h1>
+  <span class="muted">канбан по всем проектам</span>
+</div>
+
+<form id="board-filters" class="filters" autocomplete="off">
+  <select name="project_id" class="tasks-filter"
+          hx-get="/ui/tasks/board" hx-include="#board-filters"
+          hx-target="#global-kanban" hx-swap="outerHTML">
+    <option value="">Проект: все</option>
+    {% for pr in projects %}
+    <option value="{{ pr.id }}" {{ 'selected' if project_id == pr.id else '' }}>{{ pr.name }}</option>
+    {% endfor %}
+  </select>
+  <input type="search" name="q" value="{{ q }}" placeholder="Поиск по задачам…"
+         hx-get="/ui/tasks/board" hx-include="#board-filters"
+         hx-target="#global-kanban" hx-swap="outerHTML"
+         hx-trigger="input changed delay:300ms, search">
+</form>
+
+{% include "partials/kanban_global.html" %}
+{% endblock %}

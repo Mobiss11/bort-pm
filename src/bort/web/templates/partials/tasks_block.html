@@ -1,0 +1,28 @@
+<section id="tasks-block" data-tab-panel="tasks">
+  <div class="subtabs-bar" data-subtabs>
+    <div class="subtabs">
+      <button type="button" class="subtab active" data-subtab="kanban">Канбан</button>
+      <button type="button" class="subtab" data-subtab="list">Список</button>
+    </div>
+    <input type="search" class="task-search" name="task-q" value="{{ q }}" placeholder="Поиск по задачам…"
+           hx-get="/ui/projects/{{ project_id }}/tasks" hx-target="#tasks-list" hx-swap="innerHTML"
+           hx-trigger="input changed delay:300ms, search">
+  </div>
+
+  <details class="disclosure" {% if form_error %}open{% endif %}>
+    <summary class="btn btn-small">+ Задача</summary>
+    {% with form_values=form_values|default({}) %}
+    {% include "partials/task_form.html" %}
+    {% endwith %}
+  </details>
+
+  <div data-subpanel="kanban">
+    <div id="kanban-block">
+      {% include "partials/kanban_columns.html" %}
+    </div>
+  </div>
+
+  <div data-subpanel="list" hidden>
+    {% include "partials/tasks_list.html" %}
+  </div>
+</section>

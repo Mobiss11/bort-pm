@@ -1,0 +1,10 @@
+<tr>
+  <td class="nowrap">{{ e.spent_on|date_ru }}</td>
+  <td>{{ cat_titles.get(e.category_code, e.category_code) }}</td>
+  <td class="num money">{{ e.amount_minor|rub(e.currency) }}</td>
+  <td class="muted">{{ e.comment or '' }}</td>
+  <td><button type="button" class="btn btn-tiny link-danger"
+              hx-delete="/ui/projects/{{ project_id }}/expenses/{{ e.id }}"
+              hx-target="#expenses-block" hx-swap="outerHTML"
+              hx-confirm="Удалить затрату {{ e.amount_minor|rub(e.currency) }}?">×</button></td>
+</tr>
