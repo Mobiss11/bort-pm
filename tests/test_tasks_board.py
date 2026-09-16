@@ -151,15 +151,15 @@ def test_project_row_next_step_and_cta(client):
     html = client.get("/").text
     assert 'data-label="Следующий шаг"' in html
     assert "Первая строчная задача" in html
-    assert "+ Добавить задачу" in html
+    assert "+ Задача" in html
     # CTA ровно у проекта без незакрытых задач — в таблице открытых
     open_tbody = re.search(r'<tbody id="projects-tbody">(.*?)</tbody>', html, re.S).group(1)
-    assert open_tbody.count("+ Добавить задачу") == 1
+    assert open_tbody.count("+ Задача") == 1
     rows = re.findall(r'<tr class="project-row.*?</tr>', open_tbody, re.S)
     row_with_task = next(r for r in rows if ">Строчный</a>" in r)
     row_empty = next(r for r in rows if f"/projects/{p2['id']}" in r)
-    assert "+ Добавить задачу" not in row_with_task
-    assert "+ Добавить задачу" in row_empty
+    assert "+ Задача" not in row_with_task
+    assert "+ Задача" in row_empty
 
 
 def test_summary_filters_visible_in_url_and_state(client):

@@ -494,7 +494,13 @@ async def ui_task_delete(request: Request, task_id: int, conn=Depends(get_conn))
 # --- htmx-партиалы: оплата проекта ---
 
 
-def _payments_ctx(conn, project_id: int, error: str | None = None, values: dict | None = None) -> dict:
+def _payments_ctx(
+    conn,
+    project_id: int,
+    error: str | None = None,
+    values: dict | None = None,
+    money_oob: bool = False,
+) -> dict:
     project = projects_svc.get_project(conn, project_id)
     listing = payments_svc.list_payments(conn, project_id)
     deal = project["deal_amount_minor"]
@@ -510,12 +516,17 @@ def _payments_ctx(conn, project_id: int, error: str | None = None, values: dict 
         "today_iso": _today_iso(),
         "form_error": error,
         "form_values": values or {},
+        # Панель денег наверху карточки едет тем же ответом: платёж меняет её числа.
+        # На первой отрисовке страницы OOB не нужен — там панель и так своя.
+        "p": project,
+        "s": summary_svc.get_project_summary(conn, project_id),
+        "money_oob": money_oob,
     }
 
 
 @router.get("/ui/projects/{project_id}/payments", response_class=HTMLResponse)
 def ui_payments_block(request: Request, project_id: int, conn=Depends(get_conn)):
-    return _render(request, "partials/payments_block.html", _payments_ctx(conn, project_id))
+    return _render(request, "partials/payments_block.html", _payments_ctx(conn, project_id, money_oob=True))
 
 
 @router.post("/ui/projects/{project_id}/payments", response_class=HTMLResponse)
@@ -535,8 +546,8 @@ async def ui_add_payment(request: Request, project_id: int, conn=Depends(get_con
             data["comment"] = str(form["comment"]).strip()
         payments_svc.add_payment(conn, project_id, data)
     except (errors.BortError, ValueError) as e:
-        return _render(request, "partials/payments_block.html", _payments_ctx(conn, project_id, _err_message(e), values))
-    return _render(request, "partials/payments_block.html", _payments_ctx(conn, project_id))
+        return _render(request, "partials/payments_block.html", _payments_ctx(conn, project_id, _err_message(e), values, money_oob=True))
+    return _render(request, "partials/payments_block.html", _payments_ctx(conn, project_id, money_oob=True))
 
 
 @router.delete("/ui/projects/{project_id}/payments/{payment_id}", response_class=HTMLResponse)
@@ -545,18 +556,34 @@ def ui_delete_payment(request: Request, project_id: int, payment_id: int, conn=D
         payments_svc.delete_payment(conn, payment_id)
     except errors.BortError:
         pass
-    return _render(request, "partials/payments_block.html", _payments_ctx(conn, project_id))
+    return _render(request, "partials/payments_block.html", _payments_ctx(conn, project_id, money_oob=True))
 
 
-def _expenses_block_ctx(conn, project_id: int, error: str | None = None, values: dict | None = None) -> dict:
+def _expenses_block_ctx(
+    conn,
+    project_id: int,
+    error: str | None = None,
+    values: dict | None = None,
+    money_oob: bool = False,
+) -> dict:
     listing = expenses_svc.list_expenses(conn, project_id)
     s = summary_svc.get_project_summary(conn, project_id)
     return {
         "project_id": project_id,
+        # Затрата двигает маржу — панель денег наверху едет тем же ответом.
+        "p": projects_svc.get_project(conn, project_id),
+        "s": s,
+        "money_oob": money_oob,
         "expenses": listing["items"],
         "expenses_total_minor": listing["total_minor"],
         "expenses_by_category": s["expenses_by_category"],
         "categories": expenses_svc.list_categories(conn)["items"],
+        # Без этого разбивка по категориям роняла htmx-перерисовку блока затрат
+        # (шаблон зовёт cat_titles, а его отдавала только страница проекта).
+        "cat_titles": {
+            c["code"]: c["title_ru"]
+            for c in expenses_svc.list_categories(conn, include_inactive=True)["items"]
+        },
         "today_iso": _today_iso(),
         "form_error": error,
         "form_values": values or {},
@@ -571,7 +598,7 @@ def _today_iso() -> str:
 
 @router.get("/ui/projects/{project_id}/expenses", response_class=HTMLResponse)
 def ui_expenses_block(request: Request, project_id: int, conn=Depends(get_conn)):
-    return _render(request, "partials/expenses_block.html", _expenses_block_ctx(conn, project_id))
+    return _render(request, "partials/expenses_block.html", _expenses_block_ctx(conn, project_id, money_oob=True))
 
 
 @router.post("/ui/projects/{project_id}/expenses", response_class=HTMLResponse)
@@ -592,9 +619,9 @@ async def ui_create_expense(request: Request, project_id: int, conn=Depends(get_
         expenses_svc.add_expense(conn, project_id, data)
     except (errors.BortError, ValueError) as e:
         return _render(
-            request, "partials/expenses_block.html", _expenses_block_ctx(conn, project_id, _err_message(e), values)
+            request, "partials/expenses_block.html", _expenses_block_ctx(conn, project_id, _err_message(e), values, money_oob=True)
         )
-    return _render(request, "partials/expenses_block.html", _expenses_block_ctx(conn, project_id))
+    return _render(request, "partials/expenses_block.html", _expenses_block_ctx(conn, project_id, money_oob=True))
 
 
 @router.delete("/ui/projects/{project_id}/expenses/{expense_id}", response_class=HTMLResponse)
@@ -603,7 +630,7 @@ def ui_delete_expense(request: Request, project_id: int, expense_id: int, conn=D
         expenses_svc.delete_expense(conn, expense_id)
     except errors.BortError:
         pass
-    return _render(request, "partials/expenses_block.html", _expenses_block_ctx(conn, project_id))
+    return _render(request, "partials/expenses_block.html", _expenses_block_ctx(conn, project_id, money_oob=True))
 
 
 def _chats_block_ctx(conn, project_id: int, error: str | None = None) -> dict:
@@ -725,9 +752,7 @@ def _field_row_ctx(conn, project_id: int) -> dict:
     row = next((item for item in data["projects"] if item["id"] == project_id), None)
     if row is None:  # проект скрыт текущими фильтрами сводки — собираем строку вручную
         row = projects_svc.get_project(conn, project_id)
-        row["paid_minor"] = sum(
-            pay["amount_minor"] for pay in payments_svc.list_payments(conn, project_id)["items"]
-        )
+        summary_svc._apply_payment_fields(row, summary_svc._payments_map(conn))
         row["deadline_state"] = dates.deadline_state(row["deadline"])
         row["next_task"] = summary_svc._next_tasks_map(conn, [project_id]).get(project_id)
     closed_rows = [p for p in data["projects"] if p["status"] == "closed"]
@@ -750,10 +775,12 @@ def _dl_suggest() -> dict:
 
 @router.post("/ui/projects/{project_id}/fields", response_class=HTMLResponse)
 async def ui_update_project_fields(request: Request, project_id: int, conn=Depends(get_conn)):
-    """Инлайн-правка приоритета/дедлайна: POST-форма от select'а в строке сводки
-    или в шапке карточки. Возвращает обновлённую строку таблицы / шапку карточки."""
+    """Инлайн-правка статуса/приоритета/дедлайна: POST-форма от select'а в строке
+    сводки или в шапке карточки. Возвращает обновлённую строку / таблицу / шапку."""
     form = await request.form()
     data: dict = {}
+    if form.get("status"):
+        data["status"] = str(form["status"])
     if form.get("priority"):
         try:
             data["priority"] = int(form["priority"])
@@ -768,6 +795,12 @@ async def ui_update_project_fields(request: Request, project_id: int, conn=Depen
         pass  # невалидное значение — просто перерисовываем текущее состояние
     if str(form.get("view", "")) == "card":
         return await _render_project_head(request, conn, project_id)
+    if "status" in data:
+        # Статус двигает проект между разделами «Открытые» и «Закрытые» и меняет
+        # счётчики просрочек — одной строкой не обойтись, перерисовываем таблицу.
+        ctx = _board_ctx(conn, "open", str(form.get("q", "")), str(form.get("tasks", "")))
+        ctx.update({"state_oob": True, "portfolio_oob": True, "attention_oob": True})
+        return _render(request, "partials/project_table.html", ctx)
     return _render(request, "partials/project_row.html", _field_row_ctx(conn, project_id))
 
 

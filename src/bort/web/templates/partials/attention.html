@@ -36,11 +36,10 @@
   {% endif %}
 
   {% if attention.no_tasks %}
+  {# Одной строкой: раньше здесь была кнопка на каждый проект и они занимали пол-экрана. #}
   <div class="attention-cta">
-    <span class="muted">Нет незакрытых задач:</span>
-    {% for pr in attention.no_tasks %}
-    <a class="btn btn-small" href="/projects/{{ pr.id }}?return_to={{ attention_back }}">+ Добавить задачу · {{ pr.name }}</a>
-    {% endfor %}
+    <span class="muted">Без незакрытых задач:</span>
+    {% for pr in attention.no_tasks %}<a class="attention-notask" href="/projects/{{ pr.id }}?return_to={{ attention_back }}">{{ pr.name }}</a>{% if not loop.last %}<span class="muted">,</span> {% endif %}{% endfor %}
   </div>
   {% endif %}
 

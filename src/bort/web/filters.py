@@ -24,6 +24,19 @@ def rub(minor, currency: str = "RUB") -> str:
         return "—"
 
 
+def rub_short(minor, currency: str = "RUB") -> str:
+    """Компактные деньги для плотных таблиц: «150 000 ₽», копейки — только если они есть.
+
+    В сводке десятки сумм в столбик, и «,00» в каждой мешает их сравнивать глазом.
+    """
+    try:
+        value = int(minor)
+    except (TypeError, ValueError):
+        return "—"
+    full = money.format_rub(value, currency)
+    return full.replace(",00", "", 1) if value % 100 == 0 else full
+
+
 def date_ru(value) -> str:
     """«2026-09-20» → «20.09.2026»; пустое → «—»."""
     try:
@@ -89,6 +102,17 @@ def progress(done, total) -> str:
     return f"{done}/{total}"
 
 
+def plural_ru(n, one: str, few: str, many: str) -> str:
+    """Русское окончание по числу: 1 внесение, 2 внесения, 5 внесений."""
+    try:
+        n = abs(int(n))
+    except (TypeError, ValueError):
+        return many
+    if n % 100 in range(11, 15):
+        return many
+    return {1: one, 2: few, 3: few, 4: few}.get(n % 10, many)
+
+
 def pct(done, total):
     """Процент прогресса или None, если задач нет."""
     if not total:
@@ -118,6 +142,7 @@ def return_to(path: str, params: dict | None = None) -> str:
 
 def register_filters(env) -> None:
     env.filters["rub"] = rub
+    env.filters["rub_short"] = rub_short
     env.filters["date_ru"] = date_ru
     env.filters["datetime_ru"] = datetime_ru
     env.filters["days_left_str"] = days_left_str
@@ -126,5 +151,6 @@ def register_filters(env) -> None:
     env.filters["dl_state"] = dl_state
     env.filters["progress"] = progress
     env.filters["pct"] = pct
+    env.filters["plural_ru"] = plural_ru
     env.filters["url_query"] = url_query
     env.filters["return_to"] = return_to

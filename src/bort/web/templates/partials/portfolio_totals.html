@@ -1,28 +1,41 @@
-{# Единственная финансовая панель: весь портфель, независимо от фильтров. #}
-<section class="stats-grid portfolio" aria-label="Финансы всех проектов" id="portfolio-panel"
+{# Деньги всего портфеля. Иерархия вместо шести равных плиток: главное — сколько
+   уже внесли и сколько ещё должны; себестоимость и маржа — второй строкой. #}
+{% set t = portfolio_totals %}
+{% set pct_fill = 0 if t.paid_progress is none else (t.paid_progress if t.paid_progress < 100 else 100) %}
+<section class="portfolio" aria-label="Финансы всех проектов" id="portfolio-panel"
          {% if portfolio_oob %}hx-swap-oob="outerHTML"{% endif %}>
-  <div class="total-card">
-    <div class="total-label">Всего проектов · {{ portfolio_totals.currency }}</div>
-    <div class="stat-value">{{ portfolio_totals.projects_count }}</div>
-    <div class="total-sub muted">включая закрытые</div>
+  <div class="portfolio-main">
+    <div class="pf-figure">
+      <div class="pf-label">Оплачено · {{ t.currency }}</div>
+      <div class="pf-value" data-metric="paid_total_minor" data-minor="{{ t.paid_total_minor }}">{{ t.paid_total_minor|rub_short(t.currency) }}</div>
+      <div class="pf-sub muted">из {{ t.deal_total_minor|rub_short(t.currency) }}{% if t.paid_progress is not none %} · {{ t.paid_progress }}%{% endif %}</div>
+    </div>
+    <div class="pf-figure pf-rest">
+      <div class="pf-label">Остаток к оплате</div>
+      <div class="pf-value{{ ' negative' if t.remaining_total_minor < 0 else '' }}" data-metric="remaining_total_minor" data-minor="{{ t.remaining_total_minor }}">{{ t.remaining_total_minor|rub_short(t.currency) }}</div>
+      <div class="pf-sub muted">Проектов: {{ t.projects_count }} · закрыто: {{ t.closed_count }}</div>
+    </div>
   </div>
-  {% for key, title in [('deal_total_minor', 'Стоимость'), ('paid_total_minor', 'Оплачено'), ('remaining_total_minor', 'Остаток'), ('expenses_total_minor', 'Затраты'), ('margin_total_minor', 'Маржа')] %}
-  <div class="total-card {{ 'negative' if portfolio_totals[key] < 0 else '' }}">
-    <div class="total-label">{{ title }}</div>
-    <div class="stat-value" data-metric="{{ key }}" data-minor="{{ portfolio_totals[key] }}">{{ portfolio_totals[key]|rub(portfolio_totals.currency) }}</div>
+
+  {% if t.deal_total_minor %}
+  <div class="pf-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ pct_fill }}"
+       aria-label="Портфель оплачен на {{ t.paid_progress }}%">
+    <span class="pf-bar-fill" style="width: {{ pct_fill }}%"></span>
   </div>
-  {% endfor %}
+  {% endif %}
+
+  <div class="pf-secondary">
+    <span class="pf-mini"><span class="muted">Стоимость</span> <b data-metric="deal_total_minor" data-minor="{{ t.deal_total_minor }}">{{ t.deal_total_minor|rub_short(t.currency) }}</b></span>
+    <span class="pf-mini"><span class="muted">Затраты</span> <b data-metric="expenses_total_minor" data-minor="{{ t.expenses_total_minor }}">{{ t.expenses_total_minor|rub_short(t.currency) }}</b></span>
+    <span class="pf-mini"><span class="muted">Маржа</span> <b class="{{ 'negative' if t.margin_total_minor < 0 else '' }}" data-metric="margin_total_minor" data-minor="{{ t.margin_total_minor }}">{{ t.margin_total_minor|rub_short(t.currency) }}</b></span>
+    {% if t.overdue_open_count %}
+    <span class="chip chip-red">Просрочены дедлайны проектов: {{ t.overdue_open_count }}</span>
+    {% endif %}
+    {% if t.hot_open_count %}
+    <span class="chip chip-orange">Горит: {{ t.hot_open_count }}</span>
+    {% endif %}
+    {% if t.excluded_projects %}
+    <span class="chip chip-muted">Вне агрегатов ({{ t.currency }}): {% for e in t.excluded_projects %}{{ e.name }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
+    {% endif %}
+  </div>
 </section>
-<div class="alert-chips">
-  {% if portfolio_totals.overdue_open_count %}
-  <span class="chip chip-red">Просрочены дедлайны проектов: {{ portfolio_totals.overdue_open_count }}</span>
-  {% else %}
-  <span class="chip chip-muted">Дедлайны открытых проектов: без просрочки</span>
-  {% endif %}
-  {% if portfolio_totals.hot_open_count %}
-  <span class="chip chip-orange">Горит: {{ portfolio_totals.hot_open_count }}</span>
-  {% endif %}
-  {% if portfolio_totals.excluded_projects %}
-  <span class="chip chip-muted">Вне агрегатов ({{ portfolio_totals.currency }}): {% for e in portfolio_totals.excluded_projects %}{{ e.name }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
-  {% endif %}
-</div>

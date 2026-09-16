@@ -4,7 +4,7 @@ import re
 
 def test_one_portfolio_panel_and_two_tables_even_when_empty(client):
     html = client.get('/').text
-    assert len(re.findall(r'<section class="stats-grid', html)) == 1
+    assert len(re.findall(r'<section class="portfolio"', html)) == 1
     assert html.count('<table class="projects"') == 2
     assert 'Открытые' in html and 'Закрытых проектов пока нет' in html
     assert html.count('id="projects-tbody"') == 1
@@ -22,9 +22,9 @@ def test_portfolio_paid_remaining_and_search_independence(client):
     html = client.get('/?q=Открытый').text
     for key in ['deal_total_minor', 'paid_total_minor', 'remaining_total_minor', 'expenses_total_minor', 'margin_total_minor']:
         assert f'data-metric="{key}" data-minor="{totals[key]}"' in html
-    # построчные финансы — за раскрытием, но присутствуют в разметке
-    assert 'Оплачено:' in html
-    assert 'data-label="Маржа"' in html
+    # оплата видна прямо в строке проекта, маржа уехала за раскрытие «Ещё»
+    assert 'data-label="Оплата"' in html
+    assert 'Маржа:' in html
 
 
 def test_sections_stay_separate_for_legacy_scope_and_htmx(client):
@@ -53,7 +53,7 @@ def test_create_project_via_ui_refreshes_table_preserving_filters(client):
     # OOB-обновление таблицы и панелей с сохранением фильтра tasks=open
     assert 'id="projects-table-box" hx-swap-oob="innerHTML"' in r.text
     assert re.search(r'<section class="attention"[^>]*id="attention-panel"[^>]*hx-swap-oob="outerHTML"', r.text)
-    assert re.search(r'<section class="stats-grid portfolio"[^>]*id="portfolio-panel"[^>]*hx-swap-oob="outerHTML"', r.text)
+    assert re.search(r'<section class="portfolio"[^>]*id="portfolio-panel"[^>]*hx-swap-oob="outerHTML"', r.text)
 
     oob_box = re.search(r'<div id="projects-table-box" hx-swap-oob="innerHTML">(.*?)</div>\s*<section', r.text, re.S).group(1)
     assert "Старый с задачей" in oob_box

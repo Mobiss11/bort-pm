@@ -505,9 +505,6 @@ body.is-loading .global-spinner { opacity: 1; animation: spin .7s linear infinit
 }
 
 /* Сводка: одна панель и читаемые строки на узких экранах. */
-.portfolio { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.portfolio .stat-value { font-size: clamp(18px, 1.8vw, 24px); overflow-wrap: anywhere; }
-.portfolio .total-card { min-width: 0; }
 #projects-table-box { min-width: 0; }
 #projects-table-box th, #projects-table-box td { padding-left: 8px; padding-right: 8px; }
 #projects-table-box td.nowrap { white-space: normal; min-width: 150px; }
@@ -541,9 +538,6 @@ body.is-loading .global-spinner { opacity: 1; animation: spin .7s linear infinit
   .side-nav { width: 100%; gap: 2px; }
   .side-nav a { padding: 8px 10px; }
   .content { padding: 20px 12px 32px; }
-  .portfolio { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .portfolio .total-card { padding: 12px; }
-  .portfolio .stat-value { font-size: 19px; }
   #projects-table-box tbody { grid-template-columns: minmax(0, 1fr); }
   .filters > select, .filters input[type="search"] { width: 100%; flex: 1 1 100%; min-width: 0; min-height: 44px; }
   .page-head .btn, #project-form-box .btn { min-height: 44px; }
@@ -604,4 +598,115 @@ body.is-loading .global-spinner { opacity: 1; animation: spin .7s linear infinit
   #tasks-block .form-grid input, #tasks-block .form-grid select, .kanban-edit input, .kanban-edit select {
     min-width: 0; min-height: 44px;
   }
+}
+
+/* ============ Панель портфеля: иерархия вместо шести равных плиток ============ */
+.portfolio {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 18px 20px; margin-bottom: 16px;
+}
+.portfolio-main { display: flex; flex-wrap: wrap; gap: 12px 48px; align-items: flex-end; }
+.pf-figure { min-width: 0; }
+.pf-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.pf-value {
+  font-size: clamp(22px, 2.4vw, 30px); font-weight: 700; line-height: 1.2; margin-top: 2px;
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.pf-value.negative { color: var(--red); }
+.pf-rest .pf-value { font-size: clamp(18px, 1.8vw, 22px); font-weight: 650; color: var(--slate); }
+.pf-sub { font-size: 12px; margin-top: 2px; }
+.pf-bar {
+  position: relative; height: 8px; margin: 14px 0 12px;
+  background: var(--slate-soft); border-radius: 999px; overflow: hidden;
+}
+.pf-bar-fill { display: block; height: 100%; background: var(--green); border-radius: 999px; }
+.pf-secondary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
+.pf-mini { font-size: 13px; font-variant-numeric: tabular-nums; }
+.pf-mini b { font-weight: 650; }
+.pf-mini b.negative { color: var(--red); }
+.project-money { margin-bottom: 16px; }
+
+/* ============ Оплата в строке проекта ============ */
+th.col-pay { min-width: 190px; }
+.pay { min-width: 0; }
+.pay-nums { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.pay-paid { font-weight: 650; font-variant-numeric: tabular-nums; }
+.pay-paid.is-zero { color: var(--muted); font-weight: 500; }
+.pay-of { font-size: 12px; white-space: nowrap; }
+.pay-bar {
+  position: relative; height: 6px; margin: 5px 0 4px; max-width: 220px;
+  background: var(--slate-soft); border-radius: 999px; overflow: hidden;
+}
+.pay-bar-fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+.pay-full .pay-bar-fill { background: var(--green); }
+.pay-none .pay-bar-fill { background: transparent; }
+.pay-rest { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px; }
+.pay-pct { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pay-done { color: var(--green); font-weight: 600; }
+.pay-over { color: var(--amber); font-weight: 600; }
+
+/* ============ Статус, редактируемый на месте ============ */
+.status-edit {
+  font: inherit; font-size: 12px; font-weight: 600;
+  padding: 4px 22px 4px 10px; min-height: 26px;
+  border: 1px solid transparent; border-radius: 999px;
+  cursor: pointer; max-width: 100%;
+  -webkit-appearance: none; appearance: none;
+  /* Стрелка обязательна: без неё бейдж не читается как редактируемый, а статус
+     до этого вообще нельзя было сменить из интерфейса. */
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23000' stroke-opacity='.45' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; background-size: 9px 6px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.status-edit:hover { border-color: currentColor; }
+.status-edit:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--accent); }
+.status-edit.status-idea { background-color: var(--slate-soft); color: var(--slate); }
+.status-edit.status-active { background-color: var(--green-soft); color: var(--green); }
+.status-edit.status-paused { background-color: var(--amber-soft); color: var(--amber); }
+.status-edit.status-closed { background-color: var(--slate-soft); color: var(--muted); }
+.status-edit option { background: var(--surface); color: var(--text); }
+
+.prio-tag {
+  display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700;
+  vertical-align: 1px; font-variant-numeric: tabular-nums;
+}
+.prio-tag.prio-1 { color: var(--red); }
+.prio-tag.prio-2 { color: var(--orange); }
+.prio-tag.prio-3 { color: var(--muted); }
+.prio-tag.prio-4 { color: var(--border); }
+
+/* ============ Мелочи сводки ============ */
+.table-scroll { overflow-x: auto; }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.closed-fold { margin-top: 22px; }
+.closed-fold > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; }
+.closed-fold > summary::-webkit-details-marker { display: none; }
+.closed-fold > summary::before { content: '▸'; color: var(--slate); font-size: 11px; }
+.closed-fold[open] > summary::before { content: '▾'; }
+.closed-fold > summary:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+.attention-notask { font-size: 13px; font-weight: 550; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+
+@media (max-width: 1250px) {
+  /* В карточной раскладке оплата остаётся выключкой влево: полоса и остаток
+     справа от подписи ломали бы чтение. */
+  #projects-table-box td.col-pay { text-align: left; }
+  #projects-table-box td.col-pay::before { float: none; display: block; margin-bottom: 4px; }
+  #projects-table-box .pay-bar { max-width: none; }
+  #projects-table-box .status-edit { min-height: 36px; }
+  /* В карточке подпись «Ещё» рядом с кнопкой «Ещё» — лишняя. */
+  #projects-table-box td.row-extra::before { display: none; }
+}
+@media (max-width: 600px) {
+  .portfolio { padding: 14px; }
+  .portfolio-main { gap: 12px 24px; }
+  .pf-figure { flex: 1 1 100%; }
+  .pf-secondary { gap: 6px 14px; }
+  #projects-table-box .status-edit { min-height: 44px; }
 }

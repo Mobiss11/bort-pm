@@ -1,0 +1,15 @@
+{# Статус проекта, редактируемый на месте. В сводке перерисовывает таблицу целиком:
+   смена статуса переносит проект между «Открытыми» и «Закрытыми» и меняет счётчики. #}
+<select class="status-edit status-{{ p.status }}" name="status" aria-label="Статус проекта «{{ p.name }}»"
+        title="Сменить статус"
+        hx-post="/ui/projects/{{ p.id }}/fields"
+        {% if status_view == 'card' %}
+        hx-vals='{"view": "card"}'
+        hx-target="#project-head-box" hx-swap="outerHTML"
+        {% else %}
+        hx-target="#projects-table-box" hx-swap="innerHTML" hx-include="#filters"
+        {% endif %}>
+  {% for code, title in enums.project_statuses %}
+  <option value="{{ code }}" {{ 'selected' if p.status == code else '' }}>{{ title }}</option>
+  {% endfor %}
+</select>

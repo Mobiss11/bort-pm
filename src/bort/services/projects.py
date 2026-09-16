@@ -1,6 +1,6 @@
 """CRUD проектов. Чистые функции (conn, args) -> dict, без зависимости от FastAPI."""
 
-from .. import errors
+from .. import dates, errors
 from ..models import ProjectCreate, ProjectUpdate, validate_payload
 
 _STATUSES = {"idea", "active", "paused", "closed"}
@@ -89,11 +89,28 @@ def list_projects(
     return {"items": page, "total": total}
 
 
+def _autofill_status_dates(current: dict, fields: dict) -> None:
+    """Смена статуса проставляет пустую дату старта/финиша сама.
+
+    Только если поле пустое и его не задали явно: заполненную дату не трогаем и
+    при возврате из «Закрыт» не стираем — руками поставленная дата важнее догадки.
+    """
+    status = fields.get("status")
+    if status is None or status == current["status"]:
+        return
+    today = dates.today_local().isoformat()
+    if status == "active" and not current["started_on"] and "started_on" not in fields:
+        fields["started_on"] = today
+    if status == "closed" and not current["finished_on"] and "finished_on" not in fields:
+        fields["finished_on"] = today
+
+
 def update_project(conn, project_id: int, data: dict) -> dict:
     current = get_project(conn, project_id)
     fields = validate_payload(ProjectUpdate, data).model_dump(exclude_unset=True)
     if not fields:
         return current
+    _autofill_status_dates(current, fields)
 
     cols = ", ".join(f"{name} = ?" for name in fields)
     conn.execute(

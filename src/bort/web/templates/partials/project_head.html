@@ -1,20 +1,22 @@
 <h1>{{ p.name }}</h1>
 <div class="project-meta" id="project-head-fields">
-  <span class="badge status-{{ p.status }}">{{ p.status|label('project_statuses') }}</span>
-  <select class="prio-edit prio-{{ p.priority }}" name="priority"
-          hx-post="/ui/projects/{{ p.id }}/fields" hx-target="#project-head-box" hx-swap="outerHTML"
+  {% with status_view = 'card' %}{% include "partials/status_select.html" %}{% endwith %}
+  <select class="prio-edit prio-{{ p.priority }}" name="priority" aria-label="Приоритет проекта"
+          hx-post="/ui/projects/{{ p.id }}/fields" hx-vals='{"view": "card"}'
+          hx-target="#project-head-box" hx-swap="outerHTML"
           title="Сменить приоритет">
     {% for code, title in enums.priorities %}
     <option value="{{ code }}" {{ 'selected' if p.priority == code else '' }}>{{ title }}</option>
     {% endfor %}
   </select>
   {% if p.deadline %}
-  <span>Дедлайн: {{ p.deadline|date_ru }}
+  <span class="meta-deadline">Дедлайн: {{ p.deadline|date_ru }}
     <span class="days d-{{ s.deadline_state }}">{{ s.deadline_state|state_title }} ({{ s.deadline|days_left_str }})</span>
   </span>
   {% else %}<span class="muted">Без дедлайна</span>{% endif %}
-  <select class="dl-edit" name="deadline"
-          hx-post="/ui/projects/{{ p.id }}/fields" hx-target="#project-head-box" hx-swap="outerHTML"
+  <select class="dl-edit" name="deadline" aria-label="Дедлайн проекта"
+          hx-post="/ui/projects/{{ p.id }}/fields" hx-vals='{"view": "card"}'
+          hx-target="#project-head-box" hx-swap="outerHTML"
           title="Поставить/снять дедлайн">
     <option value="">— нет —</option>
     {% for n in [1, 7, 14, 30] %}
@@ -24,7 +26,6 @@
     <option value="{{ p.deadline }}" selected>{{ p.deadline|date_ru }} (текущий)</option>
     {% endif %}
   </select>
-  <input type="hidden" name="view" value="card">
   {% if p.started_on %}<span class="muted">Старт: {{ p.started_on|date_ru }}</span>{% endif %}
   {% if p.finished_on %}<span class="muted">Завершён: {{ p.finished_on|date_ru }}</span>{% endif %}
 </div>

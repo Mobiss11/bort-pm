@@ -1,12 +1,14 @@
 {# Таблица проектов одного раздела. projects = строки; во вложенном включении closed_section = True. #}
+<div class="table-scroll">
 <table class="projects" aria-label="{{ 'Закрытые проекты' if closed_section else 'Открытые проекты' }}">
   <thead>
   <tr>
     <th>Проект</th>
-    <th>Следующий шаг</th>
+    <th>Статус</th>
+    <th class="col-pay">Оплата</th>
     <th>Дедлайн</th>
-    <th class="num">Маржа</th>
-    <th>Финансы и правка</th>
+    <th>Следующий шаг</th>
+    <th><span class="visually-hidden">Ещё</span></th>
   </tr>
   </thead>
   <tbody id="{% if closed_section %}projects-tbody-closed{% else %}projects-tbody{% endif %}">
@@ -14,13 +16,14 @@
   {% include "partials/project_row.html" %}
   {% endfor %}
   {% if not projects and q %}
-  <tr><td colspan="5" class="empty">Нет проектов по запросу «{{ q }}»</td></tr>
+  <tr><td colspan="6" class="empty">Нет проектов по запросу «{{ q }}»</td></tr>
   {% elif not projects and tasks_filter %}
-  <tr><td colspan="5" class="empty">Нет проектов с выбранным фильтром задач</td></tr>
+  <tr><td colspan="6" class="empty">Нет проектов с выбранным фильтром задач</td></tr>
   {% elif not projects and closed_section %}
-  <tr><td colspan="5" class="empty">Закрытых проектов пока нет</td></tr>
+  <tr><td colspan="6" class="empty">Закрытых проектов пока нет</td></tr>
   {% elif not projects %}
-  <tr><td colspan="5" class="empty">Пока нет проектов. Нажмите «+ Проект».</td></tr>
+  <tr><td colspan="6" class="empty">Пока нет проектов. Нажмите «+ Проект».</td></tr>
   {% endif %}
   </tbody>
 </table>
+</div>

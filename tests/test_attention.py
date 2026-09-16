@@ -120,8 +120,10 @@ def test_summary_page_attention_and_chips(client):
     assert "ОткрытыйПросроч" in section  # просроченный открытый — внимание
     assert "ЗакрытыйПросроч" not in section  # закрытый просроченный не подаётся как работа
     assert "Живая задача" in section
-    # явный CTA для проекта без незакрытых задач
+    # проект без незакрытых задач назван и кликабелен (раньше здесь была кнопка
+    # на каждый такой проект — они занимали пол-экрана)
     assert f'href="/projects/{empty["id"]}' in section
-    assert "+ Добавить задачу" in section
+    assert "Без незакрытых задач:" in section
+    assert 'class="attention-notask"' in section
     # просрочка считается только по открытым
     assert "Просрочены дедлайны проектов: 1" in html

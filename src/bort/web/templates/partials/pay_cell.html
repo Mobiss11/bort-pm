@@ -1,0 +1,32 @@
+{# Оплата проекта: сумма всех внесённых платежей, доля от стоимости и остаток.
+   Числами, а не только цветом полосы — полоса здесь иллюстрация, а не единственный носитель смысла. #}
+{% set pct_raw = p.payment_progress %}
+{% set pct_fill = 0 if pct_raw is none else (pct_raw if pct_raw < 100 else 100) %}
+<div class="pay">
+  <div class="pay-nums">
+    <span class="pay-paid money{{ ' is-zero' if not p.paid_minor else '' }}">{{ p.paid_minor|rub_short(p.currency) }}</span>
+    <span class="pay-of muted">из {{ p.deal_amount_minor|rub_short(p.currency) }}</span>
+  </div>
+  {% if p.deal_amount_minor %}
+  <div class="pay-bar pay-{{ 'full' if p.remaining_minor <= 0 else ('none' if not p.paid_minor else 'part') }}"
+       role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ pct_fill }}"
+       aria-label="Оплачено {{ pct_raw }}% стоимости">
+    <span class="pay-bar-fill" style="width: {{ pct_fill }}%"></span>
+  </div>
+  {% endif %}
+  <div class="pay-rest">
+    {% if not p.deal_amount_minor %}
+    <span class="muted">стоимость не задана</span>
+    {% elif p.remaining_minor > 0 %}
+    <span class="pay-pct">{{ pct_raw }}%</span>
+    <span class="muted">· остаток {{ p.remaining_minor|rub_short(p.currency) }}</span>
+    {% elif p.remaining_minor < 0 %}
+    <span class="pay-over">переплата {{ (-p.remaining_minor)|rub_short(p.currency) }}</span>
+    {% else %}
+    <span class="pay-done">оплачено полностью</span>
+    {% endif %}
+    {% if p.payments_count %}
+    <span class="muted pay-count" title="Внесений: {{ p.payments_count }}{% if p.last_payment_on %}, последнее {{ p.last_payment_on|date_ru }}{% endif %}">· {{ p.payments_count }} внес.</span>
+    {% endif %}
+  </div>
+</div>

@@ -155,7 +155,7 @@ def test_project_page_contains_payments_block(client):
     assert "Оплачено" in html
     assert "Предоплата" in html
     assert "100 000,00" in html
-    assert "Осталось" in html
+    assert "Остаток к оплате" in html  # раньше «Осталось» в дублирующей карточке
 
     # htmx-создание платежа
     r = client.post(

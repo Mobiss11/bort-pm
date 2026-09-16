@@ -1,0 +1,29 @@
+{# Деньги проекта: сколько внесено всего, сколько осталось, из чего складывается маржа.
+   Обновляется OOB после платежа и после затраты — иначе числа наверху врут до перезагрузки. #}
+{% set pct_fill = 0 if s.payment_progress is none else (s.payment_progress if s.payment_progress < 100 else 100) %}
+<section class="portfolio project-money" id="project-money" aria-label="Деньги проекта"
+         {% if money_oob %}hx-swap-oob="outerHTML"{% endif %}>
+  <div class="portfolio-main">
+    <div class="pf-figure">
+      <div class="pf-label">Оплачено{% if s.payments_count %} · {{ s.payments_count }} {{ s.payments_count|plural_ru('внесение', 'внесения', 'внесений') }}{% endif %}</div>
+      <div class="pf-value">{{ s.paid_minor|rub_short(p.currency) }}</div>
+      <div class="pf-sub muted">из {{ p.deal_amount_minor|rub_short(p.currency) }}{% if s.payment_progress is not none %} · {{ s.payment_progress }}%{% endif %}</div>
+    </div>
+    <div class="pf-figure pf-rest">
+      <div class="pf-label">{{ 'Переплата' if s.remaining_minor < 0 else 'Остаток к оплате' }}</div>
+      <div class="pf-value">{{ (s.remaining_minor if s.remaining_minor >= 0 else -s.remaining_minor)|rub_short(p.currency) }}</div>
+      <div class="pf-sub muted">{% if s.last_payment_on %}последний платёж {{ s.last_payment_on|date_ru }}{% else %}платежей ещё не было{% endif %}</div>
+    </div>
+  </div>
+  {% if p.deal_amount_minor %}
+  <div class="pf-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ pct_fill }}"
+       aria-label="Проект оплачен на {{ s.payment_progress }}%">
+    <span class="pf-bar-fill" style="width: {{ pct_fill }}%"></span>
+  </div>
+  {% endif %}
+  <div class="pf-secondary">
+    <span class="pf-mini"><span class="muted">Стоимость</span> <b>{{ p.deal_amount_minor|rub_short(p.currency) }}</b></span>
+    <span class="pf-mini"><span class="muted">Затраты</span> <b>{{ s.expenses_minor|rub_short(p.currency) }}</b></span>
+    <span class="pf-mini"><span class="muted">Маржа</span> <b class="{{ 'negative' if s.margin_minor < 0 else '' }}">{{ s.margin_minor|rub_short(p.currency) }}</b></span>
+  </div>
+</section>

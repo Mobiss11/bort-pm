@@ -1,11 +1,14 @@
-{# Компактная строка проекта: проект + статус, реальный следующий шаг, дедлайн, маржа.
-   Финансы и редкое редактирование — за раскрытием (progressive disclosure). #}
+{# Строка проекта: имя, статус (правится на месте), оплата, дедлайн, следующий шаг.
+   Затраты, маржа и редкая правка — за раскрытием, чтобы главный экран оставался читаемым. #}
 {% set row_back = '/'|return_to({'q': q|default(''), 'tasks': tasks_filter|default('')}) %}
-<tr class="project-row st-{{ p.deadline_state }}" title="{{ p.deadline_state|state_title }}">
+<tr class="project-row st-{{ p.deadline_state }} prio-row-{{ p.priority }}">
   <td data-label="Проект">
     <a class="project-link" href="/projects/{{ p.id }}?return_to={{ row_back }}">{{ p.name }}</a>
-    <span class="badge status-{{ p.status }}">{{ p.status|label('project_statuses') }}</span>
+    <span class="prio-tag prio-{{ p.priority }}" title="Приоритет: {{ p.priority|label('priorities') }}">P{{ p.priority }}</span>
   </td>
+  <td data-label="Статус">{% include "partials/status_select.html" %}</td>
+  <td data-label="Оплата" class="col-pay">{% include "partials/pay_cell.html" %}</td>
+  <td data-label="Дедлайн" class="nowrap">{% include "partials/deadline_view.html" %}</td>
   <td data-label="Следующий шаг">
     {% if p.next_task %}
     <span class="next-step">{{ p.next_task.title }}</span>
@@ -16,18 +19,15 @@
     {% elif p.status == 'closed' %}
     <span class="muted">—</span>
     {% else %}
-    <a class="btn btn-small add-task-cta" href="/projects/{{ p.id }}?return_to={{ row_back }}">+ Добавить задачу</a>
+    <a class="btn btn-small add-task-cta" href="/projects/{{ p.id }}?return_to={{ row_back }}">+ Задача</a>
     {% endif %}
   </td>
-  <td data-label="Дедлайн" class="nowrap">{% include "partials/deadline_view.html" %}</td>
-  <td data-label="Маржа" class="num money {{ 'negative' if p.margin_minor < 0 else '' }}">{{ p.margin_minor|rub(p.currency) }}</td>
-  <td data-label="Финансы и правка" class="row-extra">
+  <td data-label="Ещё" class="row-extra">
     <details class="row-details">
-      <summary class="btn btn-small">Финансы · правка</summary>
+      <summary class="btn btn-small" title="Затраты, маржа, приоритет, дедлайн">Ещё</summary>
       <div class="row-details-body">
-        <div class="row-finance-line"><span class="muted">Стоимость:</span> {{ p.deal_amount_minor|rub(p.currency) }}</div>
-        <div class="row-finance-line"><span class="muted">Оплачено:</span> {{ p.paid_minor|rub(p.currency) }}{% if p.deal_amount_minor and p.paid_minor %} <span class="muted pct">{{ p.paid_minor|pct(p.deal_amount_minor) }}%</span>{% endif %}</div>
-        <div class="row-finance-line"><span class="muted">Затраты:</span> {{ p.expenses_minor|rub(p.currency) }}</div>
+        <div class="row-finance-line"><span class="muted">Затраты:</span> {{ p.expenses_minor|rub_short(p.currency) }}</div>
+        <div class="row-finance-line {{ 'negative' if p.margin_minor < 0 else '' }}"><span class="muted">Маржа:</span> {{ p.margin_minor|rub_short(p.currency) }}</div>
         <div class="row-finance-line"><span class="muted">Задачи:</span> {{ p.tasks_done|progress(p.tasks_total) }}</div>
         <div class="row-edit">
           <label>Приоритет {% include "partials/prio_cell.html" %}</label>

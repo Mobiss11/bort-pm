@@ -160,6 +160,41 @@ def get_attention(conn, *, today=None) -> dict:
     return {"overdue": overdue, "items": items, "no_tasks": no_tasks}
 
 
+def _payments_map(conn) -> dict[int, dict]:
+    """project_id → сумма всех внесённых платежей, их число и дата последнего.
+
+    Одним группированным запросом, без N+1: сводка показывает оплату по каждой
+    строке, поэтому «сколько внесено» должно стоить столько же, сколько сама сводка.
+    """
+    rows = conn.execute(
+        """
+        SELECT project_id,
+               SUM(amount_minor) AS paid_minor,
+               COUNT(*)          AS payments_count,
+               MAX(paid_on)      AS last_payment_on
+        FROM payments
+        GROUP BY project_id
+        """
+    ).fetchall()
+    return {r["project_id"]: dict(r) for r in rows}
+
+
+def _apply_payment_fields(p: dict, paid_map: dict[int, dict]) -> None:
+    """Оплата проекта одинаково во всех потребителях: сводка, строка, карточка, MCP.
+
+    remaining_minor может быть отрицательным — это переплата, и её надо видеть,
+    а не прятать под max(0, …).
+    """
+    meta = paid_map.get(p["id"]) or {}
+    paid = meta.get("paid_minor") or 0
+    deal = p["deal_amount_minor"] or 0
+    p["paid_minor"] = paid
+    p["remaining_minor"] = deal - paid
+    p["payment_progress"] = round(paid / deal * 100) if deal else None
+    p["payments_count"] = meta.get("payments_count") or 0
+    p["last_payment_on"] = meta.get("last_payment_on")
+
+
 def get_summary(conn, *, scope: str = "open", q: str | None = None, today=None, tasks: str | None = None) -> dict:
     if scope not in _SCOPES:
         raise errors.ValidationError(
@@ -176,19 +211,13 @@ def get_summary(conn, *, scope: str = "open", q: str | None = None, today=None, 
         {"today": today.isoformat()},
     ).fetchall()
 
-    # Платежи — одним группированным запросом, без N+1
-    paid_map = {
-        r["project_id"]: r["paid_minor"]
-        for r in conn.execute(
-            "SELECT project_id, SUM(amount_minor) AS paid_minor FROM payments GROUP BY project_id"
-        ).fetchall()
-    }
+    paid_map = _payments_map(conn)
 
     items = []
     for row in rows:
         p = dict(row)
         p["deadline_state"] = dates.deadline_state(p["deadline"], today)
-        p["paid_minor"] = paid_map.get(p["id"], 0)
+        _apply_payment_fields(p, paid_map)
         items.append(p)
 
     if q:
@@ -226,16 +255,11 @@ def get_portfolio_totals(conn, *, q: str | None = None, today=None) -> dict:
         {"today": today.isoformat()},
     ).fetchall()
     items = []
-    paid_map = {
-        r["project_id"]: r["paid_minor"]
-        for r in conn.execute(
-            "SELECT project_id, SUM(amount_minor) AS paid_minor FROM payments GROUP BY project_id"
-        ).fetchall()
-    }
+    paid_map = _payments_map(conn)
     for row in rows:
         p = dict(row)
         p["deadline_state"] = dates.deadline_state(p["deadline"], today)
-        p["paid_minor"] = paid_map.get(p["id"], 0)
+        _apply_payment_fields(p, paid_map)
         if q and str(q).casefold() not in p["name"].casefold():
             continue
         items.append(p)
@@ -261,10 +285,13 @@ def build_totals(items: list[dict]) -> dict:
         for p in items
         if p["currency"] != base
     ]
+    deal_total = sum(p["deal_amount_minor"] for p in included)
+    paid_total = sum(p["paid_minor"] for p in included)
     return {
         "projects_count": len(included),
-        "deal_total_minor": sum(p["deal_amount_minor"] for p in included),
-        "paid_total_minor": sum(p["paid_minor"] for p in included),
+        "deal_total_minor": deal_total,
+        "paid_total_minor": paid_total,
+        "paid_progress": round(paid_total / deal_total * 100) if deal_total else None,
         "remaining_total_minor": sum(p["deal_amount_minor"] - p["paid_minor"] for p in included),
         "expenses_total_minor": sum(p["expenses_minor"] for p in included),
         "margin_total_minor": sum(p["margin_minor"] for p in included),
@@ -299,14 +326,6 @@ def get_project_summary(conn, project_id: int, *, today=None) -> dict:
     ).fetchall()
     p["expenses_by_category"] = [dict(c) for c in cats]
 
-    paid = conn.execute(
-        "SELECT COALESCE(SUM(amount_minor), 0) AS paid FROM payments WHERE project_id = ?",
-        (project_id,),
-    ).fetchone()["paid"]
-    p["paid_minor"] = paid
-    p["payments_total_minor"] = paid  # имя из спецификации MCP-инструментов
-    p["remaining_minor"] = p["deal_amount_minor"] - paid
-    p["payment_progress"] = (
-        round(paid / p["deal_amount_minor"] * 100) if p["deal_amount_minor"] else None
-    )
+    _apply_payment_fields(p, _payments_map(conn))
+    p["payments_total_minor"] = p["paid_minor"]  # имя из спецификации MCP-инструментов
     return p

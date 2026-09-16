@@ -1,23 +1,7 @@
-<div class="payments-grid">
-  <div class="total-card">
-    <div class="total-label">Договор</div>
-    <div class="total-value">{{ deal_amount_minor|rub }}</div>
-  </div>
-  <div class="total-card">
-    <div class="total-label">Оплачено</div>
-    <div class="total-value paid">{{ paid_total_minor|rub }}</div>
-  </div>
-  <div class="total-card {{ 'negative' if remaining_minor > 0 else '' }}">
-    <div class="total-label">Осталось</div>
-    <div class="total-value">{{ remaining_minor|rub }}</div>
-  </div>
-  <div class="total-card">
-    <div class="total-label">Прогресс оплаты</div>
-    <div class="total-value">{{ payment_progress ~ '%' if payment_progress is not none else '—' }}</div>
-    <div class="progress pay-progress"><div class="bar" style="width: {{ payment_progress if payment_progress is not none else 0 }}%"></div></div>
-  </div>
-</div>
-
+{# Четыре карточки «Договор/Оплачено/Осталось/Прогресс» отсюда убраны: те же числа
+   стоят выше в #project-money, который обновляется OOB вместе с этим блоком. #}
+<section class="card-section" id="payments-block">
+  <div class="section-title">Оплата</div>
 {% if form_error %}<div class="form-error">{{ form_error }}</div>{% endif %}
 
 {% if payments %}
@@ -71,3 +55,6 @@
     {% endwith %}
   </form>
 </details>
+</section>
+
+{% if money_oob %}{% include "partials/project_money.html" %}{% endif %}
