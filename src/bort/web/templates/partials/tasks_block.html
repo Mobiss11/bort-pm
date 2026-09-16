@@ -4,7 +4,7 @@
       <button type="button" class="subtab active" data-subtab="kanban">Канбан</button>
       <button type="button" class="subtab" data-subtab="list">Список</button>
     </div>
-    <input type="search" class="task-search" name="task-q" value="{{ q }}" placeholder="Поиск по задачам…"
+    <input type="search" class="task-search" name="q" value="{{ q }}" placeholder="Поиск по задачам…"
            hx-get="/ui/projects/{{ project_id }}/tasks" hx-target="#tasks-list" hx-swap="innerHTML"
            hx-trigger="input changed delay:300ms, search">
   </div>

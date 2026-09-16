@@ -1,18 +1,47 @@
 <tr class="task-row {{ 'task-closed' if t.status in ('done','cancelled') else '' }}">
-  <td class="nowrap">
-    <select class="status-select st-sel-{{ t.status }}" name="status"
+  <td class="nowrap" data-label="Статус">
+    <select class="status-select st-sel-{{ t.status }}" name="status" aria-label="Статус: {{ t.title }}"
             hx-post="/ui/tasks/{{ t.id }}/status" hx-target="#tasks-block" hx-swap="outerHTML"
-            hx-vals='{"view": "list", "q": "{{ q }}"}'>
-      {% for item in enums.task_statuses %}
-      <option value="{{ item.code }}" {{ 'selected' if item.code == t.status else '' }}>{{ item.title_ru }}</option>
+            hx-vals='{"view": "list", "q": {{ q|default('')|tojson }} }'>
+      {% for code, title in enums.task_statuses %}
+      <option value="{{ code }}" {{ 'selected' if code == t.status else '' }}>{{ title }}</option>
       {% endfor %}
     </select>
   </td>
-  <td class="task-title-cell">
+  <td class="task-title-cell" data-label="Задача">
     <span class="task-title" title="{{ t.title }}">{{ t.title }}</span>
+    <details class="task-edit disclosure">
+      <summary class="btn btn-tiny" aria-label="Изменить или удалить: {{ t.title }}">⋯</summary>
+      <form class="inline-form compact" hx-post="/ui/tasks/{{ t.id }}/edit"
+            hx-target="{{ board_target|default('#tasks-block') }}" hx-swap="outerHTML">
+        <input type="hidden" name="view" value="{{ view|default('list') }}">
+        <input type="hidden" name="q" value="{{ q|default('') }}">
+        <input type="hidden" name="filter_project_id" value="{{ project_id|default('') }}">
+        <label>Задача <input name="title" value="{{ t.title }}" required maxlength="300"></label>
+        <label>Приоритет
+          <select name="priority">
+            {% for code, title in enums.priorities %}
+            <option value="{{ code }}" {{ 'selected' if code == t.priority else '' }}>{{ title }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Дедлайн <input type="date" name="deadline" value="{{ t.deadline or '' }}"></label>
+        <label>Статус
+          <select name="status">
+            {% for code, title in enums.task_statuses %}
+            <option value="{{ code }}" {{ 'selected' if code == t.status else '' }}>{{ title }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button class="btn btn-small btn-primary" type="submit">Сохранить</button>
+        <button class="btn btn-small" type="button" hx-delete="/ui/tasks/{{ t.id }}"
+                hx-target="{{ board_target|default('#tasks-block') }}" hx-swap="outerHTML"
+                hx-confirm="Удалить задачу «{{ t.title }}»?">Удалить</button>
+      </form>
+    </details>
   </td>
-  <td><span class="prio prio-{{ t.priority }}">{{ t.priority|label('priorities') }}</span></td>
-  <td class="nowrap">
+  <td data-label="Приоритет"><span class="prio prio-{{ t.priority }}">{{ t.priority|label('priorities') }}</span></td>
+  <td class="nowrap" data-label="Дедлайн">
     {% if t.deadline %}{{ t.deadline|date_ru }} <span class="days d-none">{{ t.deadline|days_left_str }}</span>
     {% else %}<span class="muted">—</span>{% endif %}
   </td>

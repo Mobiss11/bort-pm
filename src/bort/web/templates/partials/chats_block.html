@@ -35,8 +35,8 @@
         </label>
         <label>Тип
           <select name="kind">
-            {% for item in enums.chat_kinds %}
-            <option value="{{ item.code }}" {{ 'selected' if item.code == 'group' else '' }}>{{ item.title_ru }}</option>
+            {% for code, title in enums.chat_kinds %}
+            <option value="{{ code }}" {{ 'selected' if code == 'group' else '' }}>{{ title }}</option>
             {% endfor %}
           </select>
         </label>

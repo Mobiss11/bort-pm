@@ -37,6 +37,128 @@ def _resolve_today(today):
 
 _TASKS_FILTERS = ("any", "open", "closed")
 
+_OPEN_TASK_STATUSES = ("todo", "in_progress", "review")
+
+# Фактическая следующая задача проекта: срочнее выше, начатые раньше todo,
+# без дедлайна — в конце, среди равных — стабильный порядок по id.
+_NEXT_TASK_ORDER = """
+ORDER BY t.project_id,
+    t.priority ASC,
+    CASE WHEN t.status = 'todo' THEN 1 ELSE 0 END ASC,
+    t.deadline IS NULL ASC,
+    t.deadline ASC,
+    t.id ASC
+"""
+
+
+def _next_tasks_map(conn, project_ids: list[int]) -> dict[int, dict]:
+    """project_id → следующая незакрытая задача (только открытые проекты)."""
+    if not project_ids:
+        return {}
+    qs = ",".join("?" for _ in project_ids)
+    rows = conn.execute(
+        f"""
+        SELECT t.* FROM tasks t
+        JOIN projects p ON p.id = t.project_id
+        WHERE t.project_id IN ({qs})
+          AND p.status != 'closed'
+          AND t.status IN ('todo', 'in_progress', 'review')
+        {_NEXT_TASK_ORDER}
+        """,
+        list(project_ids),
+    ).fetchall()
+    nxt: dict[int, dict] = {}
+    for row in rows:
+        pid = row["project_id"]
+        if pid not in nxt:
+            nxt[pid] = dict(row)
+    return nxt
+
+
+def get_attention(conn, *, today=None) -> dict:
+    """Первый экран сводки: что требует внимания. Только открытые проекты.
+
+    - overdue: открытые проекты с просроченным дедлайном (closed overdue сюда
+      не попадает — по ним нельзя ничего сделать);
+    - items: overdue-задачи (все незакрытые просроченные задачи открытых
+      проектов — даже если следующей задачей проекта выбрана другая), затем
+      следующая незакрытая задача каждого открытого проекта в бакетах
+      urgent (приоритет 1) / started (в работе, на проверке) / other;
+    - no_tasks: открытые проекты без незакрытых задач — им нужен CTA.
+    Недатированные задачи не исчезают: они в своих бакетах последними.
+    """
+    today = _resolve_today(today)
+    open_items = get_summary(conn, scope="open", today=today)["projects"]
+    open_ids = [p["id"] for p in open_items]
+    overdue = [p for p in open_items if p["deadline_state"] == "overdue"]
+    no_tasks = [p for p in open_items if p["next_task"] is None]
+
+    items: list[dict] = []
+    overdue_task_ids: set[int] = set()
+
+    # Все незакрытые просроченные задачи открытых проектов — не теряются,
+    # даже если «следующей» выбрана задача с более высоким приоритетом.
+    if open_ids:
+        qs = ",".join("?" for _ in open_ids)
+        rows = conn.execute(
+            f"""
+            SELECT t.*, p.name AS project_name
+            FROM tasks t
+            JOIN projects p ON p.id = t.project_id
+            WHERE t.project_id IN ({qs})
+              AND p.status != 'closed'
+              AND t.status IN ('todo', 'in_progress', 'review')
+              AND t.deadline IS NOT NULL
+            ORDER BY t.deadline ASC, t.priority ASC, t.id ASC
+            """,
+            list(open_ids),
+        ).fetchall()
+        for row in rows:
+            t = dict(row)
+            if dates.deadline_state(t["deadline"], today) != "overdue":
+                continue
+            overdue_task_ids.add(t["id"])
+            items.append(
+                {
+                    "project_id": t["project_id"],
+                    "project_name": t["project_name"],
+                    "task": t,
+                    "bucket": "overdue",
+                    "task_deadline_state": "overdue",
+                }
+            )
+
+    for p in open_items:
+        t = p["next_task"]
+        if t is None or t["id"] in overdue_task_ids:
+            continue
+        if t["priority"] == 1:
+            bucket = "urgent"
+        elif t["status"] in ("in_progress", "review"):
+            bucket = "started"
+        else:
+            bucket = "other"
+        items.append(
+            {
+                "project_id": p["id"],
+                "project_name": p["name"],
+                "task": t,
+                "bucket": bucket,
+                "task_deadline_state": dates.deadline_state(t["deadline"], today),
+            }
+        )
+    bucket_order = {"overdue": 0, "urgent": 1, "started": 2, "other": 3}
+    items.sort(
+        key=lambda i: (
+            bucket_order[i["bucket"]],
+            i["task"]["priority"],
+            i["task"]["deadline"] is None,
+            i["task"]["deadline"] or "",
+            i["task"]["id"],
+        )
+    )
+    return {"overdue": overdue, "items": items, "no_tasks": no_tasks}
+
 
 def get_summary(conn, *, scope: str = "open", q: str | None = None, today=None, tasks: str | None = None) -> dict:
     if scope not in _SCOPES:
@@ -79,7 +201,11 @@ def get_summary(conn, *, scope: str = "open", q: str | None = None, today=None, 
         # Все задачи закрыты: задачи ведутся и открытых не осталось
         items = [p for p in items if p["tasks_total"] > 0 and p["tasks_open"] == 0]
 
-    portfolio = get_portfolio_totals(conn, q=q, today=today)
+    next_map = _next_tasks_map(conn, [p["id"] for p in items])
+    for p in items:
+        p["next_task"] = next_map.get(p["id"])
+
+    portfolio = get_portfolio_totals(conn, today=today)
     return {
         "totals": build_totals(items),
         "projects": items,
@@ -90,7 +216,8 @@ def get_summary(conn, *, scope: str = "open", q: str | None = None, today=None, 
 def get_portfolio_totals(conn, *, q: str | None = None, today=None) -> dict:
     """Деньги всего портфеля: открытые + закрытые (закрытые не выпадают из маржи).
 
-    Фильтры сводки (scope/tasks/q) на портфель не влияют — только поиск по имени.
+    get_summary не передаёт фильтры: верхняя панель всегда по всем проектам.
+    Параметр q оставлен для прямых сервисных вызовов.
     """
     if today is None:
         today = dates.today_local()
@@ -114,6 +241,14 @@ def get_portfolio_totals(conn, *, q: str | None = None, today=None) -> dict:
         items.append(p)
     totals = build_totals(items)
     totals["closed_count"] = sum(1 for p in items if p["status"] == "closed")
+    # Просрочка/горящие считаются только по открытым проектам: закрытый
+    # просроченный дедлайн — не работа, которую можно сделать.
+    totals["overdue_open_count"] = sum(
+        1 for p in items if p["status"] != "closed" and p["deadline_state"] == "overdue"
+    )
+    totals["hot_open_count"] = sum(
+        1 for p in items if p["status"] != "closed" and p["deadline_state"] == "hot"
+    )
     return totals
 
 
@@ -129,6 +264,8 @@ def build_totals(items: list[dict]) -> dict:
     return {
         "projects_count": len(included),
         "deal_total_minor": sum(p["deal_amount_minor"] for p in included),
+        "paid_total_minor": sum(p["paid_minor"] for p in included),
+        "remaining_total_minor": sum(p["deal_amount_minor"] - p["paid_minor"] for p in included),
         "expenses_total_minor": sum(p["expenses_minor"] for p in included),
         "margin_total_minor": sum(p["margin_minor"] for p in included),
         "overdue_count": sum(1 for p in included if p["deadline_state"] == "overdue"),

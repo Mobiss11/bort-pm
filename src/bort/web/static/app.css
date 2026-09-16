@@ -432,3 +432,176 @@ body.is-loading .global-spinner { opacity: 1; animation: spin .7s linear infinit
   background: var(--accent-soft, #eef4ff);
 }
 #global-kanban .kanban { margin-top: 10px; }
+
+/* ============ Секция «Требует внимания» ============ */
+.attention { margin-bottom: 18px; }
+.attention-list {
+  list-style: none; margin: 6px 0; padding: 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.attention-item {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--slate); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow); padding: 8px 12px;
+}
+.attention-item.st-overdue { border-left-color: var(--red); }
+.attention-item.bucket-urgent { border-left-color: var(--orange); }
+.attention-item.bucket-started { border-left-color: var(--accent); }
+.attention-task { font-weight: 550; }
+.attention-project:hover { color: var(--accent); }
+.bucket-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  border-radius: 999px; padding: 2px 10px; flex: none;
+}
+.bucket-urgent-label { background: var(--orange-soft); color: var(--orange); }
+.bucket-started-label { background: var(--accent-soft); color: var(--accent); }
+.bucket-other-label { background: var(--slate-soft); color: var(--muted); }
+.attention-item .days { margin-left: 0; }
+.attention-cta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.attention-cta .btn { height: 30px; }
+
+/* ============ Фильтры: применённые видны ============ */
+.filter-state { margin: 0 0 10px; font-size: 13px; }
+.filter-state a { margin-left: 8px; }
+
+/* ============ Строки проектов: компакт + раскрытие ============ */
+.next-step { font-weight: 500; }
+.next-status { font-size: 12px; margin-left: 6px; }
+.row-extra { min-width: 160px; }
+.row-details > summary {
+  list-style: none; cursor: pointer; white-space: nowrap;
+}
+.row-details > summary::-webkit-details-marker { display: none; }
+.row-details[open] > summary { margin-bottom: 8px; }
+.row-details-body { min-width: 220px; }
+.row-finance-line { display: flex; gap: 8px; padding: 3px 0; font-variant-numeric: tabular-nums; }
+.row-finance-line .muted { min-width: 84px; }
+.row-edit { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+.row-edit label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.row-details:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* ============ Канбан: без переполнения body, фокус виден ============ */
+.kanban { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.kanban-card:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.kanban-card[tabindex="-1"]:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kanban-actions .btn { height: 28px; min-width: 34px; }
+@media (max-width: 768px) {
+  .kanban { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .kanban { grid-template-columns: minmax(0, 1fr); }
+  .kanban-actions .btn { height: 36px; min-width: 44px; }
+  .subtabs-bar .task-search { min-width: 0; width: 100%; }
+}
+@media (max-width: 600px) {
+  #board-filters select, #board-filters input[type="search"] { width: 100%; flex: 1 1 100%; min-height: 44px; }
+  .subtabs { width: 100%; }
+  .subtabs .subtab { flex: 1; text-align: center; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; }
+  .attention-item { padding: 10px 12px; }
+  .attention-cta .btn { height: 36px; }
+}
+
+/* Сводка: одна панель и читаемые строки на узких экранах. */
+.portfolio { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.portfolio .stat-value { font-size: clamp(18px, 1.8vw, 24px); overflow-wrap: anywhere; }
+.portfolio .total-card { min-width: 0; }
+#projects-table-box { min-width: 0; }
+#projects-table-box th, #projects-table-box td { padding-left: 8px; padding-right: 8px; }
+#projects-table-box td.nowrap { white-space: normal; min-width: 150px; }
+#projects-table-box .progress-cell { white-space: normal; }
+#projects-table-box .dl-edit { max-width: 145px; }
+#projects-table-box .project-link { display: block; overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .shell { flex-direction: column; }
+  .sidebar { flex-wrap: wrap; }
+  .side-nav { flex-wrap: wrap; }
+  .side-nav a { min-height: 44px; display: flex; align-items: center; }
+  .content { width: 100%; }
+}
+@media (max-width: 1250px) {
+  #projects-table-box table.projects { display: block; overflow: visible; background: transparent; border: 0; box-shadow: none; }
+  #projects-table-box thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  #projects-table-box tbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  #projects-table-box tr { display: block; min-width: 0; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 12px; }
+  #projects-table-box td { display: block; text-align: right; padding: 8px 0; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+  #projects-table-box td::before { content: attr(data-label); float: left; color: var(--muted); font-size: 12px; font-weight: 500; margin-right: 12px; }
+  #projects-table-box td::after { content: ''; display: block; clear: both; }
+  #projects-table-box td:first-child { text-align: left; font-size: 16px; }
+  #projects-table-box td:first-child::before { display: none; }
+  #projects-table-box .empty { text-align: center; }
+  #projects-table-box .prio-edit, #projects-table-box .dl-edit { min-height: 44px; max-width: 100%; }
+  #projects-table-box .project-link { display: block; min-height: 44px; padding: 8px 0; }
+  #projects-table-box .closed-table table.projects { opacity: 1; }
+}
+@media (max-width: 600px) {
+  .sidebar { padding: 12px; gap: 8px; }
+  .side-nav { width: 100%; gap: 2px; }
+  .side-nav a { padding: 8px 10px; }
+  .content { padding: 20px 12px 32px; }
+  .portfolio { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .portfolio .total-card { padding: 12px; }
+  .portfolio .stat-value { font-size: 19px; }
+  #projects-table-box tbody { grid-template-columns: minmax(0, 1fr); }
+  .filters > select, .filters input[type="search"] { width: 100%; flex: 1 1 100%; min-width: 0; min-height: 44px; }
+  .page-head .btn, #project-form-box .btn { min-height: 44px; }
+  #project-form-box .form-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  #project-form-box .form-grid .span2 { grid-column: auto; }
+  #project-form-box .form-grid label { min-width: 0; }
+  #project-form-box input, #project-form-box select { min-width: 0; min-height: 44px; font-size: 16px; }
+  #project-form-box .form-actions { flex-wrap: wrap; }
+}
+
+/* Payment history cards: keep full comments and every field on phones. */
+@media (max-width: 600px) {
+  .payments-table { display: block; width: 100%; background: transparent; border: 0; box-shadow: none; }
+  .payments-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .payments-table tbody { display: block; }
+  .payments-table tbody tr { display: block; min-width: 0; margin-bottom: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .payments-table td { display: block; min-width: 0; padding: 6px 0; border: 0; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  .payments-table td::before { content: attr(data-label); display: block; margin-bottom: 3px; color: var(--muted); font-size: 12px; font-weight: 600; }
+  .payments-table .payment-comment { white-space: pre-wrap; line-height: 1.5; color: var(--text); }
+  #payments-block .btn { min-height: 44px; min-width: 44px; height: auto; }
+}
+
+/* Глобальный список/канбан задач: адаптивная карточная раскладка и односколоночные
+   формы на узких экранах (устраняет горизонтальный overflow на 360/390). */
+@media (max-width: 768px) {
+  #global-list table.tasks, #tasks-list table.tasks {
+    display: block; background: transparent; border: 0; box-shadow: none;
+  }
+  #global-list thead, #tasks-list thead {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
+  }
+  #global-list tbody, #tasks-list tbody { display: block; }
+  #global-list tr.task-row, #tasks-list tr.task-row {
+    display: block; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 10px 12px; margin-bottom: 10px;
+  }
+  #global-list td, #tasks-list td {
+    display: block; text-align: right; padding: 6px 0; min-width: 0;
+    white-space: normal; overflow-wrap: anywhere; border: 0;
+  }
+  #global-list td::before, #tasks-list td::before {
+    content: attr(data-label); float: left; color: var(--muted);
+    font-size: 12px; font-weight: 600; margin-right: 12px;
+  }
+  #global-list td.task-title-cell, #tasks-list td.task-title-cell { text-align: left; padding-top: 0; }
+  #global-list td.task-title-cell::before, #tasks-list td.task-title-cell::before { display: none; }
+  #global-list .status-select, #tasks-list .status-select { width: 100%; min-height: 44px; }
+}
+@media (max-width: 600px) {
+  #tasks-board .form-grid, #tasks-block .form-grid, .kanban-edit .form-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  #tasks-board .form-grid .span2, #tasks-block .form-grid .span2, .kanban-edit .form-grid .span2 {
+    grid-column: auto;
+  }
+  #tasks-board .form-grid input, #tasks-board .form-grid select,
+  #tasks-block .form-grid input, #tasks-block .form-grid select, .kanban-edit input, .kanban-edit select {
+    min-width: 0; min-height: 44px;
+  }
+}

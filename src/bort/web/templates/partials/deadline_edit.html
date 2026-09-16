@@ -1,10 +1,6 @@
-{% if p.deadline %}
-<span class="d-date">{{ p.deadline|date_ru }}</span>
-<span class="days d-{{ p.deadline_state }}">{{ p.deadline|days_left_str }}</span>
-{% else %}<span class="muted">—</span>{% endif %}
 <select class="dl-edit" name="deadline"
         hx-post="/ui/projects/{{ p.id }}/fields" hx-target="closest tr" hx-swap="outerHTML"
-        title="Поставить/снять дедлайн">
+        title="Поставить/снять дедлайн" aria-label="Дедлайн проекта">
   <option value="">— нет —</option>
   {% for n in [1, 7, 14, 30] %}
   <option value="{{ dl_suggest[n] }}" {{ 'selected' if p.deadline == dl_suggest[n] else '' }}>+{{ n }} дн.</option>

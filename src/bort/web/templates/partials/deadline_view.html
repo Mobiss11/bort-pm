@@ -1,0 +1,4 @@
+{% if p.deadline %}
+<span class="d-date">{{ p.deadline|date_ru }}</span>
+<span class="days d-{{ p.deadline_state }}">{{ p.deadline|days_left_str }}</span>
+{% else %}<span class="muted">—</span>{% endif %}

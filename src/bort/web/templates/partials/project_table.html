@@ -1,1 +1,11 @@
-{% with closed_projects = closed_projects %}{% include "partials/project_table_only.html" %}{% endwith %}
+<h2 class="section-title">Открытые · {{ projects|length }}</h2>
+{% include "partials/project_table_only.html" %}
+<h2 class="section-title closed-section-title">Закрытые · {{ closed_projects|length }}</h2>
+<div class="closed-table">
+{% with projects = closed_projects, closed_section = True %}
+  {% include "partials/project_table_only.html" %}
+{% endwith %}
+</div>
+{% if state_oob %}
+{% include "partials/summary_filter_state.html" %}
+{% endif %}

@@ -5,7 +5,7 @@
   <div id="project-head-box">
     {% include "partials/project_head.html" %}
   </div>
-  <a class="btn" href="/">← К сводке</a>
+  <a class="btn" href="{{ return_to or '/' }}">← {% if (return_to or '').startswith('/tasks') %}К задачам{% else %}К сводке{% endif %}</a>
 </div>
 
 <section class="money-block">

@@ -10,7 +10,7 @@
 
     {% for t in column_tasks %}
     {% set idx = seq.index(status) %}
-    <div class="kanban-card {{ 'is-done' if status == 'done' else '' }}" draggable="true" data-task-id="{{ t.id }}">
+    <div class="kanban-card {{ 'is-done' if status == 'done' else '' }}" draggable="true" data-task-id="{{ t.id }}" tabindex="-1">
       <div class="kanban-card-top">
         <span class="prio-dot prio-{{ t.priority }}" title="{{ t.priority|label('priorities') }}"></span>
         <span class="kanban-title" title="{{ t.title }}">{{ t.title }}</span>
@@ -20,16 +20,47 @@
       {% endif %}
       <div class="kanban-actions">
         {% if idx > 0 %}
-        <button type="button" class="btn btn-tiny" title="← {{ seq[idx-1]|label('task_statuses') }}"
-                hx-post="/ui/tasks/{{ t.id }}/status" hx-vals='{"status": "{{ seq[idx-1] }}", "view": "kanban", "q": "{{ q }}"}'
+        <button type="button" class="btn btn-tiny" data-focus-key="prev" title="← {{ seq[idx-1]|label('task_statuses') }}"
+                aria-label="Перевести «{{ t.title }}» в «{{ seq[idx-1]|label('task_statuses') }}»"
+                hx-post="/ui/tasks/{{ t.id }}/status" hx-vals='{"status": "{{ seq[idx-1] }}", "view": "kanban", "q": {{ q|default('')|tojson }} }'
                 hx-target="#kanban-block" hx-swap="outerHTML">←</button>
         {% endif %}
         {% if idx < seq|length - 1 %}
-        <button type="button" class="btn btn-tiny btn-primary" title="{{ seq[idx+1]|label('task_statuses') }} →"
-                hx-post="/ui/tasks/{{ t.id }}/status" hx-vals='{"status": "{{ seq[idx+1] }}", "view": "kanban", "q": "{{ q }}"}'
+        <button type="button" class="btn btn-tiny btn-primary" data-focus-key="next" title="{{ seq[idx+1]|label('task_statuses') }} →"
+                aria-label="Перевести «{{ t.title }}» в «{{ seq[idx+1]|label('task_statuses') }}»"
+                hx-post="/ui/tasks/{{ t.id }}/status" hx-vals='{"status": "{{ seq[idx+1] }}", "view": "kanban", "q": {{ q|default('')|tojson }} }'
                 hx-target="#kanban-block" hx-swap="outerHTML">→</button>
         {% endif %}
       </div>
+      <details class="kanban-edit disclosure">
+        <summary class="btn btn-tiny" aria-label="Изменить или удалить задачу «{{ t.title }}»">Правка</summary>
+        <form class="inline-form compact" hx-post="/ui/tasks/{{ t.id }}/edit"
+              hx-target="#kanban-block" hx-swap="outerHTML">
+          <input type="hidden" name="view" value="kanban">
+          <input type="hidden" name="q" value="{{ q|default('') }}">
+          <input type="hidden" name="filter_project_id" value="{{ project_id|default('') }}">
+          <label>Задача <input name="title" value="{{ t.title }}" required maxlength="300"></label>
+          <label>Приоритет
+            <select name="priority">
+              {% for code, title in enums.priorities %}
+              <option value="{{ code }}" {{ 'selected' if code == t.priority else '' }}>{{ title }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Дедлайн <input type="date" name="deadline" value="{{ t.deadline or '' }}"></label>
+          <label>Статус
+            <select name="status">
+              {% for code, title in enums.task_statuses %}
+              <option value="{{ code }}" {{ 'selected' if code == t.status else '' }}>{{ title }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button class="btn btn-small btn-primary" type="submit">Сохранить</button>
+          <button class="btn btn-small" type="button" hx-delete="/ui/tasks/{{ t.id }}"
+                  hx-target="#kanban-block" hx-swap="outerHTML"
+                  hx-confirm="Удалить задачу «{{ t.title }}»?">Удалить</button>
+        </form>
+      </details>
     </div>
     {% endfor %}
 

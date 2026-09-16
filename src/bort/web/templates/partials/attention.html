@@ -1,0 +1,50 @@
+{# Первый экран: что требует внимания. Только открытые проекты и реальные незакрытые задачи. #}
+{% set attention_back = '/'|return_to({'q': q|default(''), 'tasks': tasks_filter|default('')}) %}
+<section class="attention" id="attention-panel" aria-labelledby="attention-title"{% if attention_oob %} hx-swap-oob="outerHTML"{% endif %}>
+  <h2 class="section-title" id="attention-title">Требует внимания</h2>
+
+  {% if attention.overdue %}
+  <ul class="attention-list">
+    {% for p in attention.overdue %}
+    <li class="attention-item st-overdue">
+      <span class="bucket-label bucket-urgent-label">Просрочено</span>
+      <a class="project-link" href="/projects/{{ p.id }}?return_to={{ attention_back }}">{{ p.name }}</a>
+      <span class="days d-overdue">дедлайн {{ p.deadline|days_left_str }}</span>
+      {% if p.next_task %}
+      <span class="muted">следующий шаг: {{ p.next_task.title }}</span>
+      {% else %}
+      <a class="btn btn-small" href="/projects/{{ p.id }}?return_to={{ attention_back }}">+ Добавить задачу</a>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if attention["items"] %}
+  <ul class="attention-list">
+    {% for it in attention["items"] %}
+    <li class="attention-item bucket-{{ it.bucket }}">
+      <span class="bucket-label bucket-{{ it.bucket }}-label">{{ {'overdue': 'Просрочено', 'urgent': 'Срочно', 'started': 'В работе', 'other': 'Активные'}[it.bucket] }}</span>
+      <span class="attention-task">{{ it.task.title }}</span>
+      <a class="muted attention-project" href="/projects/{{ it.project_id }}?return_to={{ attention_back }}">{{ it.project_name }}</a>
+      {% if it.task.deadline %}
+      <span class="days d-{{ it.task_deadline_state }}">{{ it.task.deadline|date_ru }} · {{ it.task.deadline|days_left_str }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if attention.no_tasks %}
+  <div class="attention-cta">
+    <span class="muted">Нет незакрытых задач:</span>
+    {% for pr in attention.no_tasks %}
+    <a class="btn btn-small" href="/projects/{{ pr.id }}?return_to={{ attention_back }}">+ Добавить задачу · {{ pr.name }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if not attention.overdue and not attention["items"] %}
+  <p class="muted">Открытых просрочек и активных задач нет.</p>
+  {% endif %}
+</section>

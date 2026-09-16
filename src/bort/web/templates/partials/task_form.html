@@ -7,8 +7,8 @@
     </label>
     <label>Приоритет
       <select name="priority">
-        {% for item in enums.priorities %}
-        <option value="{{ item.code }}" {{ 'selected' if form_values.get('priority','3')|int == item.code else '' }}>{{ item.title_ru }}</option>
+        {% for code, title in enums.priorities %}
+        <option value="{{ code }}" {{ 'selected' if form_values.get('priority','3')|int == code else '' }}>{{ title }}</option>
         {% endfor %}
       </select>
     </label>

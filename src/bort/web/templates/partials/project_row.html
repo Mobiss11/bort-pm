@@ -1,19 +1,39 @@
+{# Компактная строка проекта: проект + статус, реальный следующий шаг, дедлайн, маржа.
+   Финансы и редкое редактирование — за раскрытием (progressive disclosure). #}
+{% set row_back = '/'|return_to({'q': q|default(''), 'tasks': tasks_filter|default('')}) %}
 <tr class="project-row st-{{ p.deadline_state }}" title="{{ p.deadline_state|state_title }}">
-  <td><a class="project-link" href="/projects/{{ p.id }}">{{ p.name }}</a></td>
-  <td><span class="badge status-{{ p.status }}">{{ p.status|label('project_statuses') }}</span></td>
-  <td>{% include "partials/prio_cell.html" %}</td>
-  <td class="nowrap">{% include "partials/deadline_cell.html" %}</td>
-  <td class="num money">{{ p.deal_amount_minor|rub(p.currency) }}</td>
-  <td class="num money paid-cell">
-    {{ p.paid_minor|rub(p.currency) }}
-    {% if p.deal_amount_minor and p.paid_minor %}<span class="muted pct">{{ p.paid_minor|pct(p.deal_amount_minor) }}%</span>{% endif %}
+  <td data-label="Проект">
+    <a class="project-link" href="/projects/{{ p.id }}?return_to={{ row_back }}">{{ p.name }}</a>
+    <span class="badge status-{{ p.status }}">{{ p.status|label('project_statuses') }}</span>
   </td>
-  <td class="num money">{{ p.expenses_minor|rub(p.currency) }}</td>
-  <td class="num money {{ 'negative' if p.margin_minor < 0 else '' }}">{{ p.margin_minor|rub(p.currency) }}</td>
-  <td class="progress-cell">
-    {% if p.tasks_total %}
-    <div class="progress"><div class="bar" style="width: {{ p.tasks_done|pct(p.tasks_total) }}%"></div></div>
+  <td data-label="Следующий шаг">
+    {% if p.next_task %}
+    <span class="next-step">{{ p.next_task.title }}</span>
+    {% if p.next_task.deadline %}
+    <span class="days d-{{ p.next_task.deadline|dl_state }}">{{ p.next_task.deadline|days_left_str }}</span>
     {% endif %}
-    <span class="progress-text">задачи: {{ p.tasks_done|progress(p.tasks_total) }}</span>
+    <span class="muted next-status">{{ p.next_task.status|label('task_statuses') }}</span>
+    {% elif p.status == 'closed' %}
+    <span class="muted">—</span>
+    {% else %}
+    <a class="btn btn-small add-task-cta" href="/projects/{{ p.id }}?return_to={{ row_back }}">+ Добавить задачу</a>
+    {% endif %}
+  </td>
+  <td data-label="Дедлайн" class="nowrap">{% include "partials/deadline_view.html" %}</td>
+  <td data-label="Маржа" class="num money {{ 'negative' if p.margin_minor < 0 else '' }}">{{ p.margin_minor|rub(p.currency) }}</td>
+  <td data-label="Финансы и правка" class="row-extra">
+    <details class="row-details">
+      <summary class="btn btn-small">Финансы · правка</summary>
+      <div class="row-details-body">
+        <div class="row-finance-line"><span class="muted">Стоимость:</span> {{ p.deal_amount_minor|rub(p.currency) }}</div>
+        <div class="row-finance-line"><span class="muted">Оплачено:</span> {{ p.paid_minor|rub(p.currency) }}{% if p.deal_amount_minor and p.paid_minor %} <span class="muted pct">{{ p.paid_minor|pct(p.deal_amount_minor) }}%</span>{% endif %}</div>
+        <div class="row-finance-line"><span class="muted">Затраты:</span> {{ p.expenses_minor|rub(p.currency) }}</div>
+        <div class="row-finance-line"><span class="muted">Задачи:</span> {{ p.tasks_done|progress(p.tasks_total) }}</div>
+        <div class="row-edit">
+          <label>Приоритет {% include "partials/prio_cell.html" %}</label>
+          <label>Дедлайн {% include "partials/deadline_edit.html" %}</label>
+        </div>
+      </div>
+    </details>
   </td>
 </tr>

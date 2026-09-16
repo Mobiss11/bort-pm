@@ -96,6 +96,26 @@ def pct(done, total):
     return round(int(done) / int(total) * 100)
 
 
+def url_query(path: str, params: dict | None = None) -> str:
+    """Собрать внутренний URL: path + query, где КАЖДОЕ значение закодировано.
+
+    Нужен, чтобы & / # / + / кавычки / кириллица в поиске не ломали query.
+    """
+    from urllib.parse import urlencode
+
+    clean = {k: v for k, v in (params or {}).items() if v not in (None, "")}
+    qs = urlencode(clean)
+    return f"{path}?{qs}" if qs else path
+
+
+def return_to(path: str, params: dict | None = None) -> str:
+    """Значение параметра return_to: внутренний URL, закодированный целиком,
+    чтобы его можно было безопасно вложить как значение query-параметра."""
+    from urllib.parse import quote
+
+    return quote(url_query(path, params), safe="")
+
+
 def register_filters(env) -> None:
     env.filters["rub"] = rub
     env.filters["date_ru"] = date_ru
@@ -106,3 +126,5 @@ def register_filters(env) -> None:
     env.filters["dl_state"] = dl_state
     env.filters["progress"] = progress
     env.filters["pct"] = pct
+    env.filters["url_query"] = url_query
+    env.filters["return_to"] = return_to

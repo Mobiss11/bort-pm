@@ -3,23 +3,31 @@
 {% block content %}
 <div class="page-head">
   <h1>Задачи</h1>
-  <span class="muted">канбан по всем проектам</span>
 </div>
 
+{% include "partials/tasks_chrome.html" %}
+
 <form id="board-filters" class="filters" autocomplete="off">
-  <select name="project_id" class="tasks-filter"
+  <input type="hidden" name="view" value="{{ view }}">
+  <select name="project_id" class="tasks-filter" aria-label="Фильтр по проекту"
           hx-get="/ui/tasks/board" hx-include="#board-filters"
-          hx-target="#global-kanban" hx-swap="outerHTML">
+          hx-target="#tasks-board" hx-swap="outerHTML">
     <option value="">Проект: все</option>
     {% for pr in projects %}
     <option value="{{ pr.id }}" {{ 'selected' if project_id == pr.id else '' }}>{{ pr.name }}</option>
     {% endfor %}
   </select>
-  <input type="search" name="q" value="{{ q }}" placeholder="Поиск по задачам…"
+  <input type="search" name="q" value="{{ q }}" aria-label="Поиск по задачам" placeholder="Поиск по задачам…"
          hx-get="/ui/tasks/board" hx-include="#board-filters"
-         hx-target="#global-kanban" hx-swap="outerHTML"
+         hx-target="#tasks-board" hx-swap="outerHTML"
          hx-trigger="input changed delay:300ms, search">
 </form>
 
+{% with board_in_page = True %}
+{% if view == 'list' %}
+{% include "partials/tasks_global_list.html" %}
+{% else %}
 {% include "partials/kanban_global.html" %}
+{% endif %}
+{% endwith %}
 {% endblock %}

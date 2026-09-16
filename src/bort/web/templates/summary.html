@@ -9,30 +9,24 @@
 
 {% include "partials/portfolio_totals.html" %}
 
-{% include "partials/totals.html" %}
+{% include "partials/attention.html" %}
 
 <div id="project-form-box" class="form-box"></div>
 
 <form id="filters" class="filters" autocomplete="off">
-  <div class="scope-switch" role="tablist">
-    {% for code, title in scope_labels %}
-    <label class="scope-item">
-      <input type="radio" name="scope" value="{{ code }}" {{ 'checked' if code == scope else '' }}
-             hx-get="/ui/projects" hx-include="#filters" hx-target="#projects-table-box" hx-swap="innerHTML">
-      <span>{{ title }}</span>
-    </label>
-    {% endfor %}
-  </div>
-  <select name="tasks" class="tasks-filter"
+  <input type="hidden" name="scope" value="open">
+  <select name="tasks" class="tasks-filter" aria-label="Фильтр по задачам"
           hx-get="/ui/projects" hx-include="#filters" hx-target="#projects-table-box" hx-swap="innerHTML">
     <option value="" {{ 'selected' if not tasks_filter else '' }}>Задачи: любые</option>
     <option value="open" {{ 'selected' if tasks_filter == 'open' else '' }}>С открытыми задачами</option>
     <option value="closed" {{ 'selected' if tasks_filter == 'closed' else '' }}>Все задачи закрыты</option>
   </select>
-  <input type="search" name="q" value="{{ q }}" placeholder="Поиск по названию…"
+  <input type="search" aria-label="Поиск проектов" name="q" value="{{ q }}" placeholder="Поиск по названию…"
          hx-get="/ui/projects" hx-include="#filters" hx-target="#projects-table-box" hx-swap="innerHTML"
          hx-trigger="input changed delay:300ms, search">
 </form>
+
+{% include "partials/summary_filter_state.html" %}
 
 <div id="projects-table-box">
   {% include "partials/project_table.html" %}

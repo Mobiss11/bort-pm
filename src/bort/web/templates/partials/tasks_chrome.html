@@ -1,0 +1,16 @@
+{# Состояние глобальной доски задач: переключатель вида + применённые фильтры.
+   Синхронизируется OOB при любом действии/фильтрации, чтобы ссылки и подписи
+   вне доски не устаревали. return_to кодируется целиком безопасным фильтром. #}
+{% set chrome_back = '/tasks'|return_to({'view': view, 'project_id': project_id or '', 'q': q|default('')}) %}
+<div id="tasks-chrome" class="tasks-chrome"{% if chrome_oob %} hx-swap-oob="outerHTML"{% endif %}>
+  <div class="subtabs" role="tablist" aria-label="Вид: список или канбан">
+    <a class="subtab {{ 'active' if view == 'list' else '' }}" role="tab" aria-selected="{{ 'true' if view == 'list' else 'false' }}"
+       href="/tasks?view=list&project_id={{ project_id or '' }}&q={{ q|urlencode }}">Список</a>
+    <a class="subtab {{ 'active' if view == 'kanban' else '' }}" role="tab" aria-selected="{{ 'true' if view == 'kanban' else 'false' }}"
+       href="/tasks?view=kanban&project_id={{ project_id or '' }}&q={{ q|urlencode }}">Канбан</a>
+  </div>
+  <div class="filter-state muted" aria-live="polite">
+    Показаны: {% if project_id %}проект «{{ project_name or project_id }}» <a class="project-link" href="/projects/{{ project_id }}?return_to={{ chrome_back }}">открыть проект</a>{% else %}все проекты{% endif %}{% if q %} · поиск «{{ q }}»{% endif %}{% if view == 'list' %} · список{% else %} · канбан{% endif %}
+    {% if project_id or q %}<a href="/tasks?view={{ view }}">сбросить</a>{% endif %}
+  </div>
+</div>

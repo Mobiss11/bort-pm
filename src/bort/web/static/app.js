@@ -46,9 +46,66 @@ document.body.addEventListener("htmx:beforeRequest", () => document.body.classLi
 document.body.addEventListener("htmx:afterRequest", () => document.body.classList.remove("is-loading"));
 document.body.addEventListener("htmx:sendError", () => document.body.classList.remove("is-loading"));
 
+/* Фильтры живут в URL: после любого действия/фильтрации синхронизируем адресную строку,
+   чтобы «Поделиться ссылкой» и «Назад» возвращали тот же вид. */
+function syncUrlFromFilters() {
+  const form = document.getElementById("board-filters") || document.getElementById("filters");
+  if (!form || !history.replaceState) return;
+  const params = new URLSearchParams();
+  new FormData(form).forEach((value, key) => {
+    if (String(value).trim()) params.set(key, String(value));
+  });
+  const qs = params.toString();
+  history.replaceState(null, "", location.pathname + (qs ? "?" + qs : ""));
+}
+document.addEventListener("change", (e) => {
+  if (e.target.closest && e.target.closest("#board-filters, #filters")) syncUrlFromFilters();
+});
+document.addEventListener("input", (e) => {
+  if (e.target.closest && e.target.closest("#board-filters, #filters") && e.target.type === "search") {
+    clearTimeout(window.__urlSyncTimer);
+    window.__urlSyncTimer = setTimeout(syncUrlFromFilters, 400);
+  }
+});
+document.addEventListener("htmx:afterSwap", syncUrlFromFilters);
+
+/* Фокус: после подмены фрагмента kanban возвращаем фокус на ту же карточку/кнопку,
+   чтобы смена статуса с клавиатуры не сбрасывала пользователя в начало страницы.
+   Ответ может содержать OOB-элементы (chrome), чей afterSwap приходит раньше
+   основной цели и не должен «съедать» запомненный фокус — поэтому восстанавливаем
+   только там, где реально есть карточка, и подстраховываемся отложенно после свопов. */
+let focusMemo = null;
+document.addEventListener("htmx:beforeRequest", () => {
+  const ae = document.activeElement;
+  const card = ae && ae.closest ? ae.closest("[data-task-id]") : null;
+  focusMemo = card ? { taskId: card.dataset.taskId, key: ae.dataset.focusKey || null } : null;
+});
+function restoreFocus(scope) {
+  if (!focusMemo) return;
+  const memo = focusMemo;
+  const root = scope && scope.querySelector ? scope : document;
+  const card = root.querySelector(`[data-task-id="${CSS.escape(memo.taskId)}"]`);
+  if (!card) return; // это OOB-своп или цель без карточки — ждём основную подмену
+  focusMemo = null;
+  const btn = memo.key ? card.querySelector(`[data-focus-key="${memo.key}"]`) : null;
+  (btn || card).focus();
+}
+document.addEventListener("htmx:afterSwap", (e) => {
+  if (!focusMemo) return;
+  restoreFocus(e.target); // OOB-цель карточки не содержит — memo не трогаем
+  // Страховка: если main-цель не отдала карточку (или это был только OOB-своп),
+  // восстанавливаем после завершения синхронной фазы свопов htmx.
+  clearTimeout(window.__focusTimer);
+  window.__focusTimer = setTimeout(() => {
+    restoreFocus(document);
+    focusMemo = null; // не оставляем протухший фокус, если карточка исчезла
+  }, 0);
+});
+
 /* Перетаскивание карточек задач между колонками канбана.
    Бросок в колонку = POST /ui/tasks/<id>/status с view=kanban|global —
-   сервер вернёт обновлённую доску, htmx сам подменит фрагмент. */
+   сервер вернёт обновлённую доску, мы подменяем фрагмент и запускаем
+   htmx.process (ручная подмена DOM сама по себе htmx не обрабатывает). */
 document.addEventListener("dragstart", (e) => {
   const card = e.target.closest?.(".kanban-card[draggable='true']");
   if (!card) return;
@@ -79,8 +136,11 @@ document.addEventListener("drop", (e) => {
   if (!taskId) return;
   const isGlobal = Boolean(col.closest("#global-kanban"));
   const view = isGlobal ? "global" : "kanban";
-  // Сохраняем фильтры доски (проект/поиск), чтобы доска после броска не сбрасывалась
-  const q = document.querySelector('.task-search[name="task-q"]')?.value || "";
+  // Фильтры берём с той доски, на которой произошёл бросок (раньше глобальная
+  // доска читала поиск карточки проекта — фильтры после drag-and-drop терялись).
+  const q = isGlobal
+    ? document.querySelector('#board-filters [name="q"]')?.value || ""
+    : document.querySelector('.task-search[name="q"]')?.value || "";
   const projectFilter = document.querySelector('#board-filters [name="project_id"]');
   const params = new URLSearchParams({
     status: col.dataset.col,
@@ -95,13 +155,15 @@ document.addEventListener("drop", (e) => {
   })
     .then((r) => r.text())
     .then((html) => {
-      const targetId = isGlobal ? "global-kanban" : "kanban-block";
+      const targetId = isGlobal ? "tasks-board" : "kanban-block";
       const target = document.getElementById(targetId);
       const wrap = document.createElement("div");
       wrap.innerHTML = html;
       const fresh = wrap.firstElementChild;
       if (target && fresh && fresh.id === targetId) {
         target.replaceWith(fresh);
+        window.htmx?.process(fresh); // свежая разметка содержит hx-атрибуты
+        syncUrlFromFilters();
       } else {
         window.location.reload(); // структура не совпала — надёжнее перерисовать
       }

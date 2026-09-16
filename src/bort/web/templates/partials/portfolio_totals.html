@@ -1,34 +1,28 @@
-{# Портфельные деньги: открытые + закрытые, закрытые из маржи не выпадают #}
-<section class="stats-grid portfolio">
+{# Единственная финансовая панель: весь портфель, независимо от фильтров. #}
+<section class="stats-grid portfolio" aria-label="Финансы всех проектов" id="portfolio-panel"
+         {% if portfolio_oob %}hx-swap-oob="outerHTML"{% endif %}>
   <div class="total-card">
-    <div class="total-label">Портфель · проектов</div>
+    <div class="total-label">Всего проектов · {{ portfolio_totals.currency }}</div>
     <div class="stat-value">{{ portfolio_totals.projects_count }}</div>
-    <div class="total-sub muted">
-      открытых {{ totals.projects_count }} · закрытых {{ portfolio_totals.closed_count }}
-    </div>
-  </div>
-  <div class="total-card">
-    <div class="total-label">Портфель · стоимость</div>
-    <div class="stat-value">{{ portfolio_totals.deal_total_minor|rub(portfolio_totals.currency) }}</div>
-  </div>
-  <div class="total-card">
-    <div class="total-label">Портфель · затраты</div>
-    <div class="stat-value">{{ portfolio_totals.expenses_total_minor|rub(portfolio_totals.currency) }}</div>
-  </div>
-  <div class="total-card {{ 'negative' if portfolio_totals.margin_total_minor < 0 else '' }}">
-    <div class="total-label">Портфель · маржа</div>
-    <div class="stat-value">{{ portfolio_totals.margin_total_minor|rub(portfolio_totals.currency) }}</div>
     <div class="total-sub muted">включая закрытые</div>
   </div>
+  {% for key, title in [('deal_total_minor', 'Стоимость'), ('paid_total_minor', 'Оплачено'), ('remaining_total_minor', 'Остаток'), ('expenses_total_minor', 'Затраты'), ('margin_total_minor', 'Маржа')] %}
+  <div class="total-card {{ 'negative' if portfolio_totals[key] < 0 else '' }}">
+    <div class="total-label">{{ title }}</div>
+    <div class="stat-value" data-metric="{{ key }}" data-minor="{{ portfolio_totals[key] }}">{{ portfolio_totals[key]|rub(portfolio_totals.currency) }}</div>
+  </div>
+  {% endfor %}
 </section>
-
 <div class="alert-chips">
-  <span class="chip chip-red">Просрочено: {{ totals.overdue_count }}</span>
-  <span class="chip chip-orange">Горит: {{ totals.hot_count }}</span>
-  {% if totals.excluded_projects %}
-  <span class="chip chip-muted">Вне агрегатов ({{ totals.currency }}): {% for e in totals.excluded_projects %}{{ e.name }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
+  {% if portfolio_totals.overdue_open_count %}
+  <span class="chip chip-red">Просрочены дедлайны проектов: {{ portfolio_totals.overdue_open_count }}</span>
+  {% else %}
+  <span class="chip chip-muted">Дедлайны открытых проектов: без просрочки</span>
+  {% endif %}
+  {% if portfolio_totals.hot_open_count %}
+  <span class="chip chip-orange">Горит: {{ portfolio_totals.hot_open_count }}</span>
   {% endif %}
   {% if portfolio_totals.excluded_projects %}
-  <span class="chip chip-muted">Вне портфеля ({{ portfolio_totals.currency }}): {% for e in portfolio_totals.excluded_projects %}{{ e.name }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
+  <span class="chip chip-muted">Вне агрегатов ({{ portfolio_totals.currency }}): {% for e in portfolio_totals.excluded_projects %}{{ e.name }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
   {% endif %}
 </div>

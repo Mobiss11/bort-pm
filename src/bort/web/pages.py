@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -25,6 +25,34 @@ register_filters(_templates.env)
 
 SCOPE_LABELS = [("open", "Открытые"), ("active", "В работе"), ("closed", "Закрытые"), ("all", "Все")]
 _FORM_FIELDS = ("name", "status", "priority", "deal", "currency", "deadline", "started_on", "notes")
+
+TASK_VIEWS = ("kanban", "list")
+
+
+def _safe_return_path(raw: str | None) -> str:
+    """Внутренний путь для «вернуться назад».
+
+    Whitelist: pathname ровно '/' или '/tasks'; query сохраняется как есть
+    (вместе с percent-encoding), чтобы не терять фильтры. Схемы, хосты,
+    обратные слэши и control-символы отвергаются — ссылка не станет open redirect.
+    """
+    from urllib.parse import urlsplit
+
+    if not raw:
+        return "/"
+    s = str(raw).strip()
+    if not s:
+        return "/"
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in s) or "\\" in s:
+        return "/"
+    if s.startswith("//") or "://" in s:
+        return "/"
+    parts = urlsplit(s)
+    if parts.scheme or parts.netloc:
+        return "/"
+    if parts.path not in ("/", "/tasks"):
+        return "/"
+    return parts.path + (f"?{parts.query}" if parts.query else "")
 
 
 def _render(request: Request, name: str, ctx: dict, status_code: int = 200) -> HTMLResponse:
@@ -67,17 +95,19 @@ def _project_form_data(form) -> dict:
 def summary_page(
     request: Request, scope: str = "open", q: str = "", tasks: str = "", conn=Depends(get_conn)
 ):
+    scope = "open"
     try:
         data = summary_svc.get_summary(conn, scope=scope, q=q or None, tasks=tasks or None)
     except errors.ValidationError:
         scope, q, tasks = "open", "", ""
         data = summary_svc.get_summary(conn, scope=scope)
-    closed = summary_svc.get_summary(conn, scope="closed", q=q or None)
+    closed = summary_svc.get_summary(conn, scope="closed", q=q or None, tasks=tasks or None)
     return _render(
         request,
         "summary.html",
         {
             **data,
+            "attention": summary_svc.get_attention(conn),
             "scope": scope,
             "q": q or "",
             "tasks_filter": tasks or "",
@@ -90,7 +120,9 @@ def summary_page(
 
 
 @router.get("/projects/{project_id}", response_class=HTMLResponse)
-def project_page(request: Request, project_id: int, conn=Depends(get_conn)):
+def project_page(
+    request: Request, project_id: int, return_to: str = "", conn=Depends(get_conn)
+):
     project = projects_svc.get_project(conn, project_id)
     s = summary_svc.get_project_summary(conn, project_id)
     tasks = tasks_svc.list_tasks(conn, project_id)
@@ -135,6 +167,7 @@ def project_page(request: Request, project_id: int, conn=Depends(get_conn)):
             **ctx,
             "form_error": None,
             "form_values": {},
+            "return_to": _safe_return_path(return_to),
             "active_nav": "summary",
         },
     )
@@ -188,10 +221,12 @@ def settings_page(request: Request, conn=Depends(get_conn)):
 
 
 def _board_ctx(conn, scope: str, q: str, tasks: str = "") -> dict:
-    data = summary_svc.get_summary(conn, scope=scope or "open", q=q or None, tasks=tasks or None)
-    closed = summary_svc.get_summary(conn, scope="closed", q=q or None)
+    scope = "open"
+    data = summary_svc.get_summary(conn, scope=scope, q=q or None, tasks=tasks or None)
+    closed = summary_svc.get_summary(conn, scope="closed", q=q or None, tasks=tasks or None)
     return {
         **data,
+        "attention": summary_svc.get_attention(conn),
         "scope": scope or "open",
         "q": q or "",
         "tasks_filter": tasks or "",
@@ -209,7 +244,9 @@ def ui_project_table(
     tasks: str = "",
     conn=Depends(get_conn),
 ):
-    return _render(request, "partials/project_table.html", _board_ctx(conn, scope, q, tasks))
+    ctx = _board_ctx(conn, scope, q, tasks)
+    ctx["state_oob"] = True
+    return _render(request, "partials/project_table.html", ctx)
 
 
 @router.get("/ui/projects/new", response_class=HTMLResponse)
@@ -258,6 +295,8 @@ def _tasks_ctx(
         "tasks": tasks_list,
         "tasks_all_count": len(tasks_svc.list_tasks(conn, project_id)),
         "q": q,
+        "view": "list",
+        "board_target": "#tasks-block",
         "kanban_statuses": KANBAN_SEQUENCE,
         "form_error": error,
         "form_values": values or {},
@@ -266,8 +305,15 @@ def _tasks_ctx(
 
 @router.get("/ui/projects/{project_id}/tasks", response_class=HTMLResponse)
 def ui_tasks_list(
-    request: Request, project_id: int, q: str = "", view: str = "", conn=Depends(get_conn)
+    request: Request,
+    project_id: int,
+    q: str = "",
+    view: str = "",
+    task_q: str = Query("", alias="task-q"),
+    conn=Depends(get_conn),
 ):
+    if not q and task_q:
+        q = task_q  # legacy-имя поиска из старых разметок/ссылок
     ctx = _tasks_ctx(conn, project_id, q)
     if view == "kanban":
         # Ленивая загрузка канбана: содержимое колонок внутрь #kanban-block
@@ -302,7 +348,6 @@ async def ui_create_task(request: Request, project_id: int, conn=Depends(get_con
 async def ui_task_status(request: Request, task_id: int, conn=Depends(get_conn)):
     form = await request.form()
     status = form.get("status")
-    view = form.get("view", "list")
     task = tasks_svc.get_task(conn, task_id)
     if status:
         try:
@@ -310,17 +355,140 @@ async def ui_task_status(request: Request, task_id: int, conn=Depends(get_conn))
         except (errors.BortError, ValueError):
             pass
     q = str(form.get("q", ""))
-    if view == "kanban":
-        return _render(request, "partials/kanban_block.html", _tasks_ctx(conn, task["project_id"], q))
-    if view == "global":
-        pid_raw = str(form.get("project_id", "") or "")
-        pid = int(pid_raw) if pid_raw.isdigit() else None
+    view = str(form.get("view", "list") or "list")
+    filter_pid = _form_filter_project_id(form, fallback=_pid_or_none(form.get("project_id")))
+    return _render_task_action(
+        request,
+        conn,
+        task,
+        view=view,
+        q=q,
+        filter_project_id=filter_pid,
+        project_id=task["project_id"],
+    )
+
+
+def _pid_or_none(raw) -> int | None:
+    raw = str(raw or "")
+    return int(raw) if raw.isdigit() else None
+
+
+def _task_board_target(view: str) -> str:
+    return "#tasks-board" if view in ("global", "global_list") else "#tasks-block"
+
+
+def _render_task_action(
+    request: Request,
+    conn,
+    task: dict,
+    *,
+    view: str,
+    q: str,
+    filter_project_id: int | None = None,
+    project_id: int | None = None,
+) -> HTMLResponse:
+    """Ответ после правки/удаления/статуса задачи: та же доска, те же фильтры."""
+    view = view or "list"
+    pid = project_id if project_id is not None else task["project_id"]
+    if view in ("global", "global_list"):
+        board_view = "list" if view == "global_list" else "kanban"
         return _render(
             request,
-            "partials/kanban_global.html",
-            _global_board_ctx(conn, q=q, project_id=pid),
+            _board_template(board_view),
+            _global_board_ctx(
+                conn, q=q, project_id=filter_project_id, view=board_view, chrome_oob=True
+            ),
         )
-    return _render(request, "partials/tasks_block.html", _tasks_ctx(conn, task["project_id"], q))
+    if view == "kanban":
+        return _render(request, "partials/kanban_block.html", _tasks_ctx(conn, pid, q))
+    return _render(request, "partials/tasks_block.html", _tasks_ctx(conn, pid, q))
+
+
+def _task_edit_ctx(conn, task_id: int, q: str, view: str, project_id: str) -> dict:
+    task = tasks_svc.get_task(conn, task_id)
+    view = view if view in ("kanban", "list", "global", "global_list") else "list"
+    return {
+        "t": task,
+        "q": q or "",
+        "view": view,
+        "project_id": project_id or "",
+        "board_target": _task_board_target(view),
+    }
+
+
+@router.get("/ui/tasks/{task_id}/edit", response_class=HTMLResponse)
+def ui_task_edit_form(
+    request: Request,
+    task_id: int,
+    q: str = "",
+    view: str = "list",
+    project_id: str = "",
+    conn=Depends(get_conn),
+):
+    return _render(
+        request, "partials/task_edit_form.html", _task_edit_ctx(conn, task_id, q, view, project_id)
+    )
+
+
+@router.post("/ui/tasks/{task_id}/edit", response_class=HTMLResponse)
+async def ui_task_edit(request: Request, task_id: int, conn=Depends(get_conn)):
+    form = await request.form()
+    view = str(form.get("view", "list") or "list")
+    q = str(form.get("q", ""))
+    data: dict = {}
+    if str(form.get("title", "")).strip():
+        data["title"] = form["title"]
+    if form.get("priority"):
+        try:
+            data["priority"] = int(form["priority"])
+        except (TypeError, ValueError):
+            pass
+    if "deadline" in form:
+        data["deadline"] = str(form.get("deadline", "")).strip() or None
+    if form.get("status"):
+        data["status"] = form["status"]
+    task = tasks_svc.get_task(conn, task_id)
+    try:
+        task = tasks_svc.update_task(conn, task_id, data)
+    except (errors.BortError, ValueError):
+        pass  # невалидные данные — перерисовываем текущее состояние
+    return _render_task_action(
+        request,
+        conn,
+        task,
+        view=view,
+        q=q,
+        filter_project_id=_form_filter_project_id(form, fallback=None),
+        project_id=task["project_id"],
+    )
+
+
+@router.delete("/ui/tasks/{task_id}", response_class=HTMLResponse)
+async def ui_task_delete(request: Request, task_id: int, conn=Depends(get_conn)):
+    # htmx шлёт DELETE с form-encoded телом, юнит-вызовы — query. Поддерживаем оба,
+    # иначе фильтр доски теряется после удаления (реальный браузерный баг).
+    form = await request.form()
+
+    def pick(key: str) -> str:
+        value = form.get(key)
+        if value is None or str(value) == "":
+            return str(request.query_params.get(key, ""))
+        return str(value)
+
+    q = pick("q")
+    view = pick("view") or "list"
+    raw_pid = pick("filter_project_id") or pick("project_id")
+    task = tasks_svc.get_task(conn, task_id)
+    tasks_svc.delete_task(conn, task_id)
+    return _render_task_action(
+        request,
+        conn,
+        task,
+        view=view,
+        q=q,
+        filter_project_id=int(raw_pid) if str(raw_pid).isdigit() else None,
+        project_id=task["project_id"],
+    )
 
 
 # --- htmx-партиалы: оплата проекта ---
@@ -561,6 +729,7 @@ def _field_row_ctx(conn, project_id: int) -> dict:
             pay["amount_minor"] for pay in payments_svc.list_payments(conn, project_id)["items"]
         )
         row["deadline_state"] = dates.deadline_state(row["deadline"])
+        row["next_task"] = summary_svc._next_tasks_map(conn, [project_id]).get(project_id)
     closed_rows = [p for p in data["projects"] if p["status"] == "closed"]
     return {
         "p": row,
@@ -613,25 +782,39 @@ async def _render_project_head(request: Request, conn, project_id: int) -> HTMLR
     )
 
 
-# --- Глобальный канбан задач (/tasks) ---
+# --- Глобальные задачи (/tasks): список и канбан ---
+
+
+def _normalize_view(view: str | None) -> str:
+    return view if view in TASK_VIEWS else "kanban"
 
 
 @router.get("/tasks", response_class=HTMLResponse)
 def tasks_global_page(
-    request: Request, q: str = "", project_id: int | None = None, conn=Depends(get_conn)
+    request: Request,
+    q: str = "",
+    project_id: str = "",
+    view: str = "kanban",
+    conn=Depends(get_conn),
 ):
-    ctx = _global_board_ctx(conn, q=q, project_id=project_id)
+    view = _normalize_view(view)
+    ctx = _global_board_ctx(conn, q=q, project_id=_pid_or_none(project_id), view=view)
     ctx["active_nav"] = "tasks"
+    ctx["board_in_page"] = True
     return _render(request, "tasks_global.html", ctx)
 
 
 @router.post("/ui/tasks", response_class=HTMLResponse)
 async def ui_create_task_global(request: Request, conn=Depends(get_conn)):
-    """Создание задачи из формы в глобальном канбане."""
+    """Создание задачи из формы глобальной доски (канбан или список)."""
     form = await request.form()
     q = str(form.get("q", ""))
+    view = _normalize_view(str(form.get("view", "kanban")))
     project_id_raw = str(form.get("project_id", "") or "")
     project_id = int(project_id_raw) if project_id_raw.isdigit() else None
+    # Проект создания (project_id) и фильтр доски (filter_project_id) — разные вещи.
+    # Нет filter_project_id — старое поведение: фильтруем по выбранному проекту.
+    filter_pid = _form_filter_project_id(form, fallback=project_id)
     values = {k: str(form.get(k, "")) for k in ("title", "priority", "deadline")}
     values["project_id"] = project_id_raw
     data: dict = {}
@@ -649,18 +832,45 @@ async def ui_create_task_global(request: Request, conn=Depends(get_conn)):
             raise errors.ValidationError("Выберите проект для задачи")
         tasks_svc.create_task(conn, project_id, data)
     except (errors.BortError, ValueError) as e:
-        ctx = _global_board_ctx(conn, q=q, project_id=project_id)
+        ctx = _global_board_ctx(conn, q=q, project_id=filter_pid, view=view, chrome_oob=True)
         ctx.update({"form_error": _err_message(e), "form_values": values})
-        return _render(request, "partials/kanban_global.html", ctx)
-    return _render(request, "partials/kanban_global.html", _global_board_ctx(conn, q=q, project_id=project_id))
+        return _render(request, _board_template(view), ctx)
+    return _render(
+        request,
+        _board_template(view),
+        _global_board_ctx(conn, q=q, project_id=filter_pid, view=view, chrome_oob=True),
+    )
 
 
-def _global_board_ctx(conn, q: str = "", project_id: int | None = None) -> dict:
+def _form_filter_project_id(form, *, fallback: int | None) -> int | None:
+    """Фильтр доски из формы. Если поля нет — старое поведение (fallback)."""
+    if "filter_project_id" not in form:
+        return fallback
+    return _pid_or_none(form.get("filter_project_id"))
+
+
+def _board_template(view: str) -> str:
+    return "partials/tasks_global_list.html" if view == "list" else "partials/kanban_global.html"
+
+
+def _global_board_ctx(
+    conn,
+    q: str = "",
+    project_id: int | None = None,
+    view: str = "kanban",
+    *,
+    chrome_oob: bool = False,
+) -> dict:
+    view = _normalize_view(view)
+    projects = projects_svc.list_projects(conn, limit=None)["items"]
     return {
         "tasks": tasks_svc.list_all_tasks(conn, q=q or None, project_id=project_id),
-        "projects": projects_svc.list_projects(conn, limit=None)["items"],
+        "projects": projects,
+        "project_name": next((p["name"] for p in projects if p["id"] == project_id), None),
         "q": q or "",
         "project_id": project_id,
+        "view": view,
+        "chrome_oob": chrome_oob,
         "kanban_statuses": KANBAN_SEQUENCE,
         "form_error": None,
         "form_values": {},
@@ -669,10 +879,18 @@ def _global_board_ctx(conn, q: str = "", project_id: int | None = None) -> dict:
 
 @router.get("/ui/tasks/board", response_class=HTMLResponse)
 def ui_global_board(
-    request: Request, q: str = "", project_id: int | None = None, conn=Depends(get_conn)
+    request: Request,
+    q: str = "",
+    project_id: str = "",
+    view: str = "kanban",
+    conn=Depends(get_conn),
 ):
     return _render(
-        request, "partials/kanban_global.html", _global_board_ctx(conn, q=q, project_id=project_id)
+        request,
+        _board_template(_normalize_view(view)),
+        _global_board_ctx(
+            conn, q=q, project_id=_pid_or_none(project_id), view=view, chrome_oob=True
+        ),
     )
 
 

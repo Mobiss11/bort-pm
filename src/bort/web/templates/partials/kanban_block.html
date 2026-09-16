@@ -1,3 +1,3 @@
-<div id="kanban-block" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<div id="kanban-block" {% if oob or oob_kanban %}hx-swap-oob="outerHTML"{% endif %}>
 {% include "partials/kanban_columns.html" %}
 </div>

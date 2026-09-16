@@ -1,11 +1,11 @@
-<div id="tasks-board" data-view="kanban">
+<div id="tasks-board" data-view="list">
   {% if form_error %}<div class="form-error">{{ form_error }}</div>{% endif %}
 
   <details class="disclosure" {% if form_error or not tasks %}open{% endif %}>
     <summary class="btn btn-small">+ Задача</summary>
     <form class="inline-form compact" hx-post="/ui/tasks"
           hx-target="#tasks-board" hx-swap="outerHTML">
-      <input type="hidden" name="view" value="kanban">
+      <input type="hidden" name="view" value="list">
       <input type="hidden" name="q" value="{{ q }}">
       <input type="hidden" name="filter_project_id" value="{{ '' if project_id is none else project_id }}">
       <div class="form-grid">
@@ -37,54 +37,30 @@
     </form>
   </details>
 
-  {% set tasks_back = '/tasks'|return_to({'view': 'kanban', 'project_id': project_id or '', 'q': q|default('')}) %}
-  <div id="global-kanban">
-  {% set seq = kanban_statuses %}
-  <div class="kanban">
-    {% for status in seq %}
-    {% set column_tasks = tasks|selectattr('status', 'equalto', status)|list %}
-    <div class="kanban-col col-{{ status }}" data-col="{{ status }}">
-      <div class="kanban-col-head">
-        <span class="kanban-col-title">{{ status|label('task_statuses') }}</span>
-        <span class="kanban-count">{{ column_tasks|length }}</span>
-      </div>
-
-      {% for t in column_tasks %}
-      {% set idx = seq.index(status) %}
-      <div class="kanban-card {{ 'is-done' if status == 'done' else '' }}" draggable="true" data-task-id="{{ t.id }}" tabindex="-1">
-        <div class="kanban-card-top">
-          <span class="prio-dot prio-{{ t.priority }}" title="{{ t.priority|label('priorities') }}"></span>
-          <span class="kanban-title" title="{{ t.title }}">{{ t.title }}</span>
-        </div>
-        <div class="kanban-meta">
-          <a class="kanban-project" href="/projects/{{ t.project_id }}?return_to={{ tasks_back }}">{{ t.project_name }}</a>
-          {% if t.deadline %}
-          <span class="days d-{{ t.deadline|dl_state }}">{{ t.deadline|date_ru }} · {{ t.deadline|days_left_str }}</span>
-          {% endif %}
-        </div>
-        <div class="kanban-actions">
-          {% if idx > 0 %}
-          <button type="button" class="btn btn-tiny" data-focus-key="prev"
-                  title="← {{ seq[idx-1]|label('task_statuses') }}"
-                  aria-label="Перевести «{{ t.title }}» в «{{ seq[idx-1]|label('task_statuses') }}»"
-                  hx-post="/ui/tasks/{{ t.id }}/status"
-                  hx-vals='{"status": "{{ seq[idx-1] }}", "view": "global", "project_id": "{{ project_id or '' }}", "q": {{ q|default('')|tojson }} }'
-                  hx-target="#tasks-board" hx-swap="outerHTML">←</button>
-          {% endif %}
-          {% if idx < seq|length - 1 %}
-          <button type="button" class="btn btn-tiny btn-primary" data-focus-key="next"
-                  title="{{ seq[idx+1]|label('task_statuses') }} →"
-                  aria-label="Перевести «{{ t.title }}» в «{{ seq[idx+1]|label('task_statuses') }}»"
-                  hx-post="/ui/tasks/{{ t.id }}/status"
-                  hx-vals='{"status": "{{ seq[idx+1] }}", "view": "global", "project_id": "{{ project_id or '' }}", "q": {{ q|default('')|tojson }} }'
-                  hx-target="#tasks-board" hx-swap="outerHTML">→</button>
-          {% endif %}
-        </div>
-        <details class="kanban-edit disclosure">
-          <summary class="btn btn-tiny" aria-label="Изменить или удалить задачу «{{ t.title }}»">Правка</summary>
+  {% set tasks_back = '/tasks'|return_to({'view': 'list', 'project_id': project_id or '', 'q': q|default('')}) %}
+  <div id="global-list">
+  {% if tasks %}
+  <table class="tasks" aria-label="Задачи всех проектов">
+    <thead><tr><th>Статус</th><th>Задача</th><th>Проект</th><th>Приоритет</th><th>Дедлайн</th></tr></thead>
+    <tbody>
+    {% for t in tasks %}
+    <tr class="task-row {{ 'task-closed' if t.status in ('done','cancelled') else '' }}">
+      <td class="nowrap" data-label="Статус">
+        <select class="status-select st-sel-{{ t.status }}" name="status" aria-label="Статус: {{ t.title }}"
+                hx-post="/ui/tasks/{{ t.id }}/status" hx-target="#tasks-board" hx-swap="outerHTML"
+                hx-vals='{"view": "global_list", "project_id": "{{ project_id or '' }}", "q": {{ q|default('')|tojson }} }'>
+          {% for code, title in enums.task_statuses %}
+          <option value="{{ code }}" {{ 'selected' if code == t.status else '' }}>{{ title }}</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td class="task-title-cell" data-label="Задача">
+        <span class="task-title" title="{{ t.title }}">{{ t.title }}</span>
+        <details class="task-edit disclosure">
+          <summary class="btn btn-tiny" aria-label="Изменить или удалить: {{ t.title }}">⋯</summary>
           <form class="inline-form compact" hx-post="/ui/tasks/{{ t.id }}/edit"
                 hx-target="#tasks-board" hx-swap="outerHTML">
-            <input type="hidden" name="view" value="global">
+            <input type="hidden" name="view" value="global_list">
             <input type="hidden" name="q" value="{{ q|default('') }}">
             <input type="hidden" name="filter_project_id" value="{{ '' if project_id is none else project_id }}">
             <label>Задача <input name="title" value="{{ t.title }}" required maxlength="300"></label>
@@ -109,17 +85,23 @@
                     hx-confirm="Удалить задачу «{{ t.title }}»?">Удалить</button>
           </form>
         </details>
-      </div>
-      {% endfor %}
-
-      {% if not column_tasks %}
-      <div class="kanban-empty">пусто</div>
-      {% endif %}
-    </div>
+      </td>
+      <td data-label="Проект">
+        <a class="project-link" href="/projects/{{ t.project_id }}?return_to={{ tasks_back }}">{{ t.project_name }}</a>
+      </td>
+      <td data-label="Приоритет"><span class="prio prio-{{ t.priority }}">{{ t.priority|label('priorities') }}</span></td>
+      <td class="nowrap" data-label="Дедлайн">
+        {% if t.deadline %}{{ t.deadline|date_ru }} <span class="days d-{{ t.deadline|dl_state }}">{{ t.deadline|days_left_str }}</span>
+        {% else %}<span class="muted">—</span>{% endif %}
+      </td>
+    </tr>
     {% endfor %}
-  </div>
-  {% if not tasks %}
-  <div class="empty-soft">Задач нет — добавьте первую через форму выше или снимите фильтры.</div>
+    </tbody>
+  </table>
+  {% elif project_id or q %}
+  <div class="empty-soft">Нет задач по фильтру. Добавьте задачу через форму выше или <a href="/tasks?view=list">сбросьте фильтры</a>.</div>
+  {% else %}
+  <div class="empty-soft">Задач нет — добавьте первую через форму выше.</div>
   {% endif %}
   </div>
 </div>

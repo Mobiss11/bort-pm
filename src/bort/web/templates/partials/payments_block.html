@@ -26,11 +26,11 @@
   <tbody>
   {% for pay in payments %}
   <tr>
-    <td class="nowrap">{{ pay.paid_on|date_ru }}</td>
-    <td><span class="badge pay-{{ pay.kind }}">{{ kind_labels.get(pay.kind, pay.kind) }}</span></td>
-    <td class="num money">{{ pay.amount_minor|rub }}</td>
-    <td class="muted">{{ pay.comment or '' }}</td>
-    <td><button type="button" class="btn btn-tiny link-danger"
+    <td class="nowrap" data-label="Дата">{{ pay.paid_on|date_ru }}</td>
+    <td data-label="Вид"><span class="badge pay-{{ pay.kind }}">{{ kind_labels.get(pay.kind, pay.kind) }}</span></td>
+    <td class="num money" data-label="Сумма">{{ pay.amount_minor|rub }}</td>
+    <td class="muted payment-comment" data-label="Комментарий">{{ pay.comment or '' }}</td>
+    <td data-label="Действия"><button type="button" class="btn btn-tiny link-danger"
                 hx-delete="/ui/projects/{{ project_id }}/payments/{{ pay.id }}"
                 hx-target="#payments-block" hx-swap="outerHTML"
                 hx-confirm="Удалить платёж {{ pay.amount_minor|rub }}?">Удалить</button></td>
