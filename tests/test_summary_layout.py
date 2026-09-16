@@ -52,7 +52,7 @@ def test_create_project_via_ui_refreshes_table_preserving_filters(client):
     assert "Проект создан" in r.text
     # OOB-обновление таблицы и панелей с сохранением фильтра tasks=open
     assert 'id="projects-table-box" hx-swap-oob="innerHTML"' in r.text
-    assert re.search(r'<section class="attention"[^>]*id="attention-panel"[^>]*hx-swap-oob="outerHTML"', r.text)
+    assert re.search(r'<section class="attention[^"]*"[^>]*id="attention-panel"[^>]*hx-swap-oob="outerHTML"', r.text)
     assert re.search(r'<section class="portfolio"[^>]*id="portfolio-panel"[^>]*hx-swap-oob="outerHTML"', r.text)
 
     oob_box = re.search(r'<div id="projects-table-box" hx-swap-oob="innerHTML">(.*?)</div>\s*<section', r.text, re.S).group(1)
@@ -61,5 +61,7 @@ def test_create_project_via_ui_refreshes_table_preserving_filters(client):
     # под фильтром tasks=open новый пустой проект не появляется — без выдуманных строк
     open_tbody = re.search(r'<tbody id="projects-tbody">(.*?)</tbody>', oob_box, re.S).group(1)
     assert "Совсем новый" not in open_tbody
-    # внимание тоже обновилось: новый проект в CTA без задач
-    assert "Совсем новый" in re.search(r'<section class="attention.*?</section>', r.text, re.S).group(0)
+    # блок внимания приезжает тем же ответом; проекта без задач и дедлайна в нём нет —
+    # внимания он не требует, а в CTA «добавь задачу» больше не перечисляется
+    attention = re.search(r'<section class="attention.*?</section>', r.text, re.S).group(0)
+    assert "Совсем новый" not in attention

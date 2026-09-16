@@ -115,7 +115,7 @@ def test_status_change_from_summary_moves_project_between_sections(client):
     assert "Переезжающий" in closed_tbody
     # панели портфеля и внимания переезжают вместе с ним
     assert re.search(r'<section class="portfolio"[^>]*hx-swap-oob="outerHTML"', r.text)
-    assert re.search(r'<section class="attention"[^>]*hx-swap-oob="outerHTML"', r.text)
+    assert re.search(r'<section class="attention[^"]*"[^>]*hx-swap-oob="outerHTML"', r.text)
     assert client.get("/api/v1/projects/%d" % p["id"]).json()["status"] == "closed"
 
 

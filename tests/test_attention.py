@@ -120,10 +120,31 @@ def test_summary_page_attention_and_chips(client):
     assert "ОткрытыйПросроч" in section  # просроченный открытый — внимание
     assert "ЗакрытыйПросроч" not in section  # закрытый просроченный не подаётся как работа
     assert "Живая задача" in section
-    # проект без незакрытых задач назван и кликабелен (раньше здесь была кнопка
-    # на каждый такой проект — они занимали пол-экрана)
-    assert f'href="/projects/{empty["id"]}' in section
-    assert "Без незакрытых задач:" in section
-    assert 'class="attention-notask"' in section
+    # проекты без незакрытых задач в блок не попадают: это был перечень тех же
+    # проектов, что и в таблице ниже, то есть шум на первом экране
+    assert f'href="/projects/{empty["id"]}' not in section
+    assert "Без незакрытых задач" not in html
     # просрочка считается только по открытым
     assert "Просрочены дедлайны проектов: 1" in html
+
+
+def test_attention_block_disappears_when_nothing_needs_attention(client):
+    """Ни заголовка, ни «ничего нет»: пустой блок не занимает первый экран.
+    Но элемент остаётся в DOM — на него нацелены OOB-обновления."""
+    client.post("/api/v1/projects", json={"name": "БезЗадачБезДедлайна", "status": "active"})
+    html = client.get("/").text
+    assert "Требует внимания" not in html
+    assert "Открытых просрочек и активных задач нет" not in html
+    m = re.search(r'<section class="attention[^"]*"[^>]*id="attention-panel"[^>]*>(.*?)</section>', html, re.S)
+    assert m, "секция должна остаться в разметке ради hx-swap-oob"
+    assert "attention-blank" in m.group(0)
+    assert m.group(1).strip() == ""
+
+    # появилась просрочка — блок вернулся сам
+    p = client.post(
+        "/api/v1/projects", json={"name": "Просроченный", "status": "active", "deadline": "2020-01-01"}
+    ).json()
+    html = client.get("/").text
+    assert "Требует внимания" in html
+    assert "attention-blank" not in html
+    assert f'href="/projects/{p["id"]}' in re.search(r'<section class="attention.*?</section>', html, re.S).group(0)

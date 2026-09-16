@@ -435,6 +435,8 @@ body.is-loading .global-spinner { opacity: 1; animation: spin .7s linear infinit
 
 /* ============ Секция «Требует внимания» ============ */
 .attention { margin-bottom: 18px; }
+/* Нечему требовать внимания — блока нет на экране, но элемент жив для hx-swap-oob. */
+.attention-blank { display: none; }
 .attention-list {
   list-style: none; margin: 6px 0; padding: 0;
   display: flex; flex-direction: column; gap: 6px;
@@ -458,8 +460,6 @@ body.is-loading .global-spinner { opacity: 1; animation: spin .7s linear infinit
 .bucket-started-label { background: var(--accent-soft); color: var(--accent); }
 .bucket-other-label { background: var(--slate-soft); color: var(--muted); }
 .attention-item .days { margin-left: 0; }
-.attention-cta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
-.attention-cta .btn { height: 30px; }
 
 /* ============ Фильтры: применённые видны ============ */
 .filter-state { margin: 0 0 10px; font-size: 13px; }
@@ -501,7 +501,6 @@ body.is-loading .global-spinner { opacity: 1; animation: spin .7s linear infinit
   .subtabs { width: 100%; }
   .subtabs .subtab { flex: 1; text-align: center; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; }
   .attention-item { padding: 10px 12px; }
-  .attention-cta .btn { height: 36px; }
 }
 
 /* Сводка: одна панель и читаемые строки на узких экранах. */
@@ -687,7 +686,6 @@ th.col-pay { min-width: 190px; }
 .closed-fold > summary::before { content: '▸'; color: var(--slate); font-size: 11px; }
 .closed-fold[open] > summary::before { content: '▾'; }
 .closed-fold > summary:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
-.attention-notask { font-size: 13px; font-weight: 550; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: .01ms !important; animation-duration: .01ms !important; }

@@ -1,6 +1,15 @@
-{# Первый экран: что требует внимания. Только открытые проекты и реальные незакрытые задачи. #}
+{# Что требует внимания: просроченные открытые проекты и реальные незакрытые задачи.
+   Когда требовать нечего — секция пустая и на экране её нет. Ни перечня проектов
+   без задач, ни надписи «ничего нет»: это был список тех же проектов, что и в
+   таблице ниже, то есть шум на первом экране.
+   Сам элемент остаётся в DOM всегда — на него нацелены OOB-обновления, и без
+   него блок не появился бы при первой же просрочке до перезагрузки страницы. #}
 {% set attention_back = '/'|return_to({'q': q|default(''), 'tasks': tasks_filter|default('')}) %}
-<section class="attention" id="attention-panel" aria-labelledby="attention-title"{% if attention_oob %} hx-swap-oob="outerHTML"{% endif %}>
+{% set has_attention = attention.overdue or attention["items"] %}
+<section class="attention{% if not has_attention %} attention-blank{% endif %}" id="attention-panel"
+         {% if has_attention %}aria-labelledby="attention-title"{% endif %}
+         {%- if attention_oob %} hx-swap-oob="outerHTML"{% endif %}>
+  {% if has_attention %}
   <h2 class="section-title" id="attention-title">Требует внимания</h2>
 
   {% if attention.overdue %}
@@ -13,7 +22,7 @@
       {% if p.next_task %}
       <span class="muted">следующий шаг: {{ p.next_task.title }}</span>
       {% else %}
-      <a class="btn btn-small" href="/projects/{{ p.id }}?return_to={{ attention_back }}">+ Добавить задачу</a>
+      <a class="btn btn-small" href="/projects/{{ p.id }}?return_to={{ attention_back }}">+ Задача</a>
       {% endif %}
     </li>
     {% endfor %}
@@ -34,16 +43,5 @@
     {% endfor %}
   </ul>
   {% endif %}
-
-  {% if attention.no_tasks %}
-  {# Одной строкой: раньше здесь была кнопка на каждый проект и они занимали пол-экрана. #}
-  <div class="attention-cta">
-    <span class="muted">Без незакрытых задач:</span>
-    {% for pr in attention.no_tasks %}<a class="attention-notask" href="/projects/{{ pr.id }}?return_to={{ attention_back }}">{{ pr.name }}</a>{% if not loop.last %}<span class="muted">,</span> {% endif %}{% endfor %}
-  </div>
-  {% endif %}
-
-  {% if not attention.overdue and not attention["items"] %}
-  <p class="muted">Открытых просрочек и активных задач нет.</p>
   {% endif %}
 </section>
