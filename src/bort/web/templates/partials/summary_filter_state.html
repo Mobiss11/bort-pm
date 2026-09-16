@@ -1,6 +1,11 @@
-{# Применённые фильтры сводки: видимы и синхронизируются OOB при фильтрации/создании. #}
-<div id="summary-filter-state" class="filter-state muted" aria-live="polite"
-     {% if state_oob %}hx-swap-oob="outerHTML"{% endif %}>
+{# Применённые фильтры сводки. Задаются только через URL (?q=…&tasks=…) — на экране
+   их больше нет. Без фильтров строка пустая: «Показаны: открытые» дублировало
+   заголовок «Открытые · N» прямо под ней.
+   Элемент остаётся в разметке всегда: на него нацелен hx-swap-oob. #}
+<div id="summary-filter-state" class="filter-state muted{% if not (tasks_filter or q) %} filter-state-blank{% endif %}" aria-live="polite"
+     {%- if state_oob %} hx-swap-oob="outerHTML"{% endif %}>
+  {%- if tasks_filter or q %}
   Показаны: открытые{% if tasks_filter %} · {{ 'с открытыми задачами' if tasks_filter == 'open' else 'все задачи закрыты' }}{% endif %}{% if q %} · поиск «{{ q }}»{% endif %}
-  {% if tasks_filter or q %}<a href="/">сбросить</a>{% endif %}
+  <a href="/">сбросить</a>
+  {%- endif %}
 </div>

@@ -175,8 +175,10 @@ def test_summary_page_has_paid_column_and_tasks_filter(client):
     r = client.get("/")
     assert r.status_code == 200
     assert "Оплачено" in r.text
-    assert "Все задачи закрыты" in r.text
-    assert "С открытыми задачами" in r.text
+    # селекта фильтра и поиска на экране больше нет — фильтры живут в URL
+    assert "Задачи: любые" not in r.text
+    assert 'id="filters"' not in r.text
+    assert client.get("/", params={"tasks": "open"}).status_code == 200
 
     # Фильтр задач через UI-эндпоинт
     r = client.get("/ui/projects", params={"scope": "all", "tasks": "closed"})

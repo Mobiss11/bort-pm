@@ -463,6 +463,8 @@ body.is-loading .global-spinner { opacity: 1; animation: spin .7s linear infinit
 
 /* ============ Фильтры: применённые видны ============ */
 .filter-state { margin: 0 0 10px; font-size: 13px; }
+/* Фильтров нет — строки нет, но элемент жив для hx-swap-oob. */
+.filter-state-blank { display: none; }
 .filter-state a { margin-left: 8px; }
 
 /* ============ Строки проектов: компакт + раскрытие ============ */

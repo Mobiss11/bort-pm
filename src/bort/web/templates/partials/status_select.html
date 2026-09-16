@@ -7,7 +7,10 @@
         hx-vals='{"view": "card"}'
         hx-target="#project-head-box" hx-swap="outerHTML"
         {% else %}
-        hx-target="#projects-table-box" hx-swap="innerHTML" hx-include="#filters"
+        hx-target="#projects-table-box" hx-swap="innerHTML"
+        {# Фильтры сводки задаются только через URL — форму #filters убрали с экрана,
+           поэтому текущие q/tasks едут явными значениями, а не hx-include. #}
+        hx-vals='{"q": {{ q|default('')|tojson }}, "tasks": {{ tasks_filter|default('')|tojson }}}'
         {% endif %}>
   {% for code, title in enums.project_statuses %}
   <option value="{{ code }}" {{ 'selected' if p.status == code else '' }}>{{ title }}</option>

@@ -1,4 +1,5 @@
 """Оплата видна в сводке, статус правится на месте. Изолированная БД, живые данные не трогаются."""
+import json
 import re
 
 from bort.services import projects as projects_svc
@@ -233,3 +234,40 @@ def test_plural_ru_endings():
     forms = ("внесение", "внесения", "внесений")
     got = [f"{n} {plural_ru(n, *forms)}" for n in (1, 2, 5, 11, 21, 104)]
     assert got == ["1 внесение", "2 внесения", "5 внесений", "11 внесений", "21 внесение", "104 внесения"]
+
+
+# --- Экран сводки без фильтров: они остались только в URL ---
+
+
+def test_summary_has_no_filter_controls_but_url_filters_still_work(client):
+    _mk(client, "Первый")
+    _mk(client, "Второй")
+    html = client.get("/").text
+    assert 'id="filters"' not in html
+    assert "Поиск по названию" not in html
+    assert "Задачи: любые" not in html
+    # без фильтров нет и строки «Показаны», но элемент жив для hx-swap-oob
+    assert "Показаны" not in html
+    assert 'id="summary-filter-state"' in html
+    assert "filter-state-blank" in html
+
+    # фильтр из URL по-прежнему работает и о нём написано
+    filtered = client.get("/", params={"q": "Первый"}).text
+    assert "поиск «Первый»" in filtered
+    assert "filter-state-blank" not in filtered
+    open_tbody = re.search(r'<tbody id="projects-tbody">(.*?)</tbody>', filtered, re.S).group(1)
+    assert "Первый" in open_tbody and "Второй" not in open_tbody
+
+
+def test_status_select_carries_filters_without_the_form(client):
+    """Форму #filters убрали — q/tasks должны ехать явными значениями."""
+    p = _mk(client, "Фильтрованный")
+    _mk(client, "Лишний")
+    row = _row(client.get("/", params={"q": "Фильтрован"}).text, "Фильтрованный")
+    assert "hx-include" not in row
+    vals = json.loads(re.search(r"hx-vals='([^']*)'", row).group(1))
+    assert vals == {"q": "Фильтрован", "tasks": ""}
+
+    r = client.post(f"/ui/projects/{p['id']}/fields", data={"status": "paused", "q": "Фильтрован", "tasks": ""})
+    open_tbody = re.search(r'<tbody id="projects-tbody">(.*?)</tbody>', r.text, re.S).group(1)
+    assert "Фильтрованный" in open_tbody and "Лишний" not in open_tbody
