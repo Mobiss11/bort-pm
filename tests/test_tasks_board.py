@@ -1,5 +1,5 @@
-"""Глобальные задачи: список И канбан с честным первичным рендером,
-фильтры сохраняются после всех действий и в URL, безопасный return_to.
+"""Канбан и список задач на карточке проекта: честный первичный рендер,
+безопасный return_to назад на сводку.
 """
 
 import re
@@ -21,107 +21,6 @@ def _mk_task(client, project_id, title, **extra):
     return r.json()
 
 
-def test_global_kanban_initial_render(client):
-    p = _mk_project(client, "Доска А")
-    t1 = _mk_task(client, p["id"], "Написать отчёт")
-    _mk_task(client, p["id"], "Позвонить клиенту", status="in_progress")
-    html = client.get("/tasks").text
-    assert 'id="global-kanban"' in html
-    assert "Написать отчёт" in html  # карточки отрисованы сразу, не по требованию
-    assert f'data-task-id="{t1["id"]}"' in html
-    assert "Доска А" in html  # проект на карточке
-    assert "col-todo" in html and "col-in_progress" in html
-
-
-def test_global_list_initial_render(client):
-    p = _mk_project(client, "Список А")
-    t = _mk_task(client, p["id"], "Задача в списке")
-    html = client.get("/tasks?view=list").text
-    assert 'id="global-list"' in html
-    assert "Задача в списке" in html
-    assert "Список А" in html
-    # переключатель видов присутствует и сохраняет фильтры в URL
-    assert "/tasks?view=kanban" in html
-    assert "/tasks?view=list" in html
-
-
-def test_board_partial_respects_view(client):
-    p = _mk_project(client, "Част")
-    _mk_task(client, p["id"], "Частичная задача")
-    kan = client.get("/ui/tasks/board").text
-    assert 'id="tasks-board"' in kan and 'id="global-kanban"' in kan
-    lst = client.get("/ui/tasks/board?view=list").text
-    assert 'id="tasks-board"' in lst and 'id="global-list"' in lst
-    assert "Частичная задача" in lst
-
-
-def test_project_filter_and_q_on_global_list(client):
-    p1 = _mk_project(client, "Проект Один")
-    p2 = _mk_project(client, "Проект Два")
-    _mk_task(client, p1["id"], "Задача альфа")
-    _mk_task(client, p2["id"], "Задача бета")
-    html = client.get("/tasks?view=list&project_id=%d" % p2["id"]).text
-    assert "Задача бета" in html
-    assert "Задача альфа" not in html
-    # фильтры названы и применённые видны
-    assert "Проект: все" in html
-    assert "Показаны" in html
-
-
-def test_status_change_from_list_preserves_filters(client):
-    p = _mk_project(client, "Статусный")
-    t1 = _mk_task(client, p["id"], "Сделать альфу")
-    _mk_task(client, p["id"], "Сделать бету")
-    r = client.post(
-        f"/ui/tasks/{t1['id']}/status",
-        data={"status": "in_progress", "view": "global_list", "q": "альфу", "project_id": str(p["id"])},
-    )
-    assert r.status_code == 200
-    assert 'id="tasks-board"' in r.text
-    assert "Сделать альфу" in r.text
-    assert "Сделать бету" not in r.text  # q-фильтр сохранён после действия
-    # фактический статус изменился
-    assert client.get(f"/api/v1/tasks/{t1['id']}").json()["status"] == "in_progress"
-
-
-def test_status_change_in_kanban_keeps_filters(client):
-    p = _mk_project(client, "КанбанКью")
-    t1 = _mk_task(client, p["id"], "Кью задача")
-    _mk_task(client, p["id"], "Другая задача")
-    r = client.post(
-        f"/ui/tasks/{t1['id']}/status",
-        data={"status": "review", "view": "global", "q": "Кью"},
-    )
-    assert r.status_code == 200
-    assert 'id="global-kanban"' in r.text
-    assert "Кью задача" in r.text
-    assert "Другая задача" not in r.text
-    # кнопки-альтернативы drag-drop на месте с aria
-    assert "aria-label" in r.text
-
-
-def test_create_task_from_list_preserves_view_and_filters(client):
-    p = _mk_project(client, "Создание")
-    r = client.post(
-        "/ui/tasks",
-        data={"project_id": str(p["id"]), "title": "Свежая задача", "view": "list", "q": "Свежая"},
-    )
-    assert r.status_code == 200
-    assert 'id="tasks-board"' in r.text and "Свежая задача" in r.text
-    assert 'value="Свежая"' in r.text  # q остался в поиске
-    assert f'value="{p["id"]}" selected' in r.text  # проектный фильтр остался
-
-
-def test_global_list_empty_state_with_cta(client):
-    p = _mk_project(client, "ПустоПроект")
-    r = client.get("/tasks?view=list").text
-    assert "Задач нет" in r
-    # с фильтром проекта — честный пустой стейт
-    html = client.get(f"/tasks?view=list&project_id={p['id']}").text
-    assert "Нет задач" in html
-    assert "+ Задача" in html  # CTA доступен
-
-
 def test_project_kanban_initial_load(client):
     p = _mk_project(client, "ПроектКанбан")
     t = _mk_task(client, p["id"], "Первоначальная задача")
@@ -137,8 +36,9 @@ def test_return_to_whitelist(client):
     assert "evil.com" not in r.text
     r = client.get(f"/projects/{p['id']}", params={"return_to": "//evil.com"})
     assert "evil.com" not in r.text
+    # путь, отличный от сводки, больше не принимается — возвращаемся на '/'
     r = client.get(f"/projects/{p['id']}", params={"return_to": "/tasks?view=list&q=x"})
-    assert 'href="/tasks?view=list&amp;q=x"' in r.text
+    assert 'href="/tasks' not in r.text
     # дефолт — сводка
     r = client.get(f"/projects/{p['id']}")
     assert 'href="/"' in r.text

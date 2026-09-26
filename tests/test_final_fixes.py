@@ -1,5 +1,5 @@
 """Регрессии финального ревью: safe return, truthful attention, поиск проекта,
-edit/delete HTML-флоу, OOB-синхронизация фильтров, разделение фильтра и проекта создания.
+edit/delete HTML-флоу.
 
 Все CRUD — на fixture-БД (tests/conftest.py, BORT_DB=tmp). Production не трогаем.
 """
@@ -20,7 +20,8 @@ TODAY = "2026-09-14"
 
 def test_safe_return_path_preserves_query_and_whitelists():
     assert _safe_return_path("/?q=alpha&tasks=open") == "/?q=alpha&tasks=open"
-    assert _safe_return_path("/tasks?view=list&q=alpha") == "/tasks?view=list&q=alpha"
+    # единственный разрешённый путь — сводка; прочее схлопывается в '/'
+    assert _safe_return_path("/tasks?view=list&q=alpha") == "/"
     assert _safe_return_path("/tasks-invalid") == "/"
     assert _safe_return_path("/etc/passwd") == "/"
     assert _safe_return_path("/tasks/../etc") == "/"
@@ -29,12 +30,12 @@ def test_safe_return_path_preserves_query_and_whitelists():
     assert _safe_return_path("/tasks\\evil") == "/"
     assert _safe_return_path("/tasks?q=a\\b") == "/"
     assert _safe_return_path("/\x00tasks") == "/"
-    assert _safe_return_path("/tasks\n") == "/tasks"
+    assert _safe_return_path("/tasks\n") == "/"
     assert _safe_return_path(None) == "/"
     assert _safe_return_path("") == "/"
-    assert _safe_return_path("/tasks?") == "/tasks"
+    assert _safe_return_path("/tasks?") == "/"
     # уже закодированные значения не перекодируются
-    assert _safe_return_path("/tasks?q=%26%23+&x=1") == "/tasks?q=%26%23+&x=1"
+    assert _safe_return_path("/?q=%26%23+&x=1") == "/?q=%26%23+&x=1"
 
 
 SPECIAL_NAMES = ["Спец& #+ \"кир", "a&b", "a#b", "a+b", "a\"b", "кириллица"]
@@ -53,21 +54,6 @@ def test_summary_links_encode_return_to_with_special_query(client, name):
         qs = parse_qs(urlsplit(inner).query)
         assert qs.get("q", [""])[0] == name
         assert qs.get("tasks", [""])[0] == "open"
-
-
-@pytest.mark.parametrize("name", SPECIAL_NAMES)
-def test_tasks_links_encode_return_to_with_special_query(client, name):
-    p = client.post("/api/v1/projects", json={"name": name, "status": "active"}).json()
-    client.post(f"/api/v1/projects/{p['id']}/tasks", json={"title": "задача"})
-    html = client.get("/tasks", params={"q": name, "project_id": p["id"]}).text
-    tokens = re.findall(r'href="/projects/\d+\?return_to=([^"&]+)"', html)
-    assert tokens
-    for token in tokens:
-        inner = unquote(token)
-        assert _safe_return_path(inner) == inner, inner
-        qs = parse_qs(urlsplit(inner).query)
-        assert qs.get("q", [""])[0] == name
-        assert qs.get("project_id", [""])[0] == str(p["id"])
 
 
 def test_project_back_link_preserves_filtered_summary(client):
@@ -222,32 +208,6 @@ def test_task_edit_html_flow_preserves_filters(client):
     assert client.get(f"/api/v1/tasks/{t1['id']}").json()["title"] == "ALPHA-2"
 
 
-def test_task_edit_global_list_keeps_view_and_filters(client):
-    p = client.post("/api/v1/projects", json={"name": "ПравкаГ", "status": "active"}).json()
-    t1 = client.post(f"/api/v1/projects/{p['id']}/tasks", json={"title": "ALPHA"}).json()
-    client.post(f"/api/v1/projects/{p['id']}/tasks", json={"title": "BETA"})
-    r = client.post(
-        f"/ui/tasks/{t1['id']}/edit",
-        data={"title": "ALPHA-3", "priority": "2", "deadline": "", "status": "todo",
-              "q": "ALPHA", "view": "global_list", "project_id": str(p["id"])},
-    )
-    assert 'id="tasks-board"' in r.text and 'data-view="list"' in r.text
-    assert "ALPHA-3" in r.text and "BETA" not in r.text
-
-
-def test_task_delete_global_list_preserves_filters(client):
-    p = client.post("/api/v1/projects", json={"name": "Удаление", "status": "active"}).json()
-    t1 = client.post(f"/api/v1/projects/{p['id']}/tasks", json={"title": "ALPHA"}).json()
-    t2 = client.post(f"/api/v1/projects/{p['id']}/tasks", json={"title": "BETA"}).json()
-    r = client.delete(f"/ui/tasks/{t1['id']}", params={"view": "global_list", "q": "", "project_id": p["id"]})
-    assert r.status_code == 200
-    assert 'id="tasks-board"' in r.text
-    assert "ALPHA" not in r.text
-    assert "BETA" in r.text
-    assert client.get(f"/api/v1/tasks/{t1['id']}").status_code == 404
-    assert client.get(f"/api/v1/tasks/{t2['id']}").status_code == 200
-
-
 def test_task_delete_project_list_preserves_view(client):
     p = client.post("/api/v1/projects", json={"name": "УдалениеП", "status": "active"}).json()
     t1 = client.post(f"/api/v1/projects/{p['id']}/tasks", json={"title": "ALPHA"}).json()
@@ -265,16 +225,7 @@ def test_task_disclosure_controls_present(client):
     assert 'hx-delete="/ui/tasks/' in html  # удаление за раскрытием
 
 
-# ---------- 5. OOB-синхронизация chrome ----------
-
-
-def test_board_response_updates_chrome_oob(client):
-    p = client.post("/api/v1/projects", json={"name": "Хром", "status": "active"}).json()
-    r = client.get("/ui/tasks/board", params={"view": "list", "q": "zzz", "project_id": p["id"]})
-    assert 'id="tasks-chrome"' in r.text
-    assert "hx-swap-oob" in r.text
-    assert "поиск «zzz»" in r.text
-    assert "проект «Хром»" in r.text
+# ---------- 5. OOB-синхронизация состояния сводки ----------
 
 
 def test_summary_filter_response_updates_state_oob(client):
@@ -286,40 +237,3 @@ def test_summary_filter_response_updates_state_oob(client):
     assert "с открытыми задачами" in r.text
     assert "поиск «Свод»" in r.text
     assert "return_to=" in r.text  # attention back links пересобраны под текущие фильтры
-
-
-# ---------- 6. фильтр доски vs проект создания ----------
-
-
-def test_create_task_all_projects_keeps_filter_all(client):
-    p1 = client.post("/api/v1/projects", json={"name": "Первый", "status": "active"}).json()
-    p2 = client.post("/api/v1/projects", json={"name": "Второй", "status": "active"}).json()
-    client.post(f"/api/v1/projects/{p2['id']}/tasks", json={"title": "ЗАДАЧА-ВТОРОГО"})
-    r = client.post(
-        "/ui/tasks",
-        data={"project_id": str(p1["id"]), "filter_project_id": "", "title": "ЗАДАЧА-НОВАЯ",
-              "view": "list", "q": ""},
-    )
-    assert "ЗАДАЧА-НОВАЯ" in r.text
-    assert "ЗАДАЧА-ВТОРОГО" in r.text  # доска осталась «все проекты», не сузилась до проекта создания
-
-
-def test_create_task_filtered_keeps_filter_project(client):
-    p1 = client.post("/api/v1/projects", json={"name": "Ф1", "status": "active"}).json()
-    p2 = client.post("/api/v1/projects", json={"name": "Ф2", "status": "active"}).json()
-    client.post(f"/api/v1/projects/{p2['id']}/tasks", json={"title": "ЗАДАЧА-ВТОРОГО"})
-    r = client.post(
-        "/ui/tasks",
-        data={"project_id": str(p1["id"]), "filter_project_id": str(p1["id"]), "title": "ЗАДАЧА-НОВАЯ",
-              "view": "list", "q": ""},
-    )
-    assert "ЗАДАЧА-НОВАЯ" in r.text
-    assert "ЗАДАЧА-ВТОРОГО" not in r.text  # фильтр по проекту сохранён
-
-
-def test_create_task_form_has_separate_filter_hidden(client):
-    p = client.post("/api/v1/projects", json={"name": "Форма", "status": "active"}).json()
-    for view in ("kanban", "list"):
-        html = client.get("/tasks", params={"view": view, "project_id": p["id"]}).text
-        assert 'name="filter_project_id"' in html
-        assert 'name="project_id"' in html

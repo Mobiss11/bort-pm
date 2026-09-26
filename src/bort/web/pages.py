@@ -3,10 +3,10 @@
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from .. import config, db, dates, errors, money
+from .. import dates, errors, money
 from ..services import chats as chats_svc
 from ..services import expenses as expenses_svc
 from ..services import payments as payments_svc
@@ -26,13 +26,11 @@ register_filters(_templates.env)
 SCOPE_LABELS = [("open", "Открытые"), ("active", "В работе"), ("closed", "Закрытые"), ("all", "Все")]
 _FORM_FIELDS = ("name", "status", "priority", "deal", "currency", "deadline", "started_on", "notes")
 
-TASK_VIEWS = ("kanban", "list")
-
 
 def _safe_return_path(raw: str | None) -> str:
     """Внутренний путь для «вернуться назад».
 
-    Whitelist: pathname ровно '/' или '/tasks'; query сохраняется как есть
+    Whitelist: pathname ровно '/'; query сохраняется как есть
     (вместе с percent-encoding), чтобы не терять фильтры. Схемы, хосты,
     обратные слэши и control-символы отвергаются — ссылка не станет open redirect.
     """
@@ -50,7 +48,7 @@ def _safe_return_path(raw: str | None) -> str:
     parts = urlsplit(s)
     if parts.scheme or parts.netloc:
         return "/"
-    if parts.path not in ("/", "/tasks"):
+    if parts.path != "/":
         return "/"
     return parts.path + (f"?{parts.query}" if parts.query else "")
 
@@ -114,7 +112,6 @@ def summary_page(
             "scope_labels": SCOPE_LABELS,
             "closed_projects": closed["projects"],
             "closed_totals": closed["totals"],
-            "active_nav": "summary",
         },
     )
 
@@ -168,51 +165,6 @@ def project_page(
             "form_error": None,
             "form_values": {},
             "return_to": _safe_return_path(return_to),
-            "active_nav": "summary",
-        },
-    )
-
-
-@router.get("/chats", response_class=HTMLResponse)
-def chats_page(request: Request, q: str = "", conn=Depends(get_conn)):
-    data = chats_svc.list_chats(conn, q=q or None)
-    return _render(request, "chats.html", {**data, "q": q or "", "active_nav": "chats"})
-
-
-def _chats_page_ctx(conn, q: str = "") -> dict:
-    items = chats_svc.list_chats(conn, q=q or None)["items"]
-    all_people = people_svc.list_people(conn)["items"]
-    chats = []
-    for c in items:
-        full = chats_svc.get_chat(conn, c["id"])
-        member_ids = {m["person_id"] for m in full["members"]}
-        chats.append(
-            {
-                "chat": full,
-                "free_people": [p for p in all_people if p["id"] not in member_ids],
-            }
-        )
-    return {"chats": chats, "q": q or ""}
-
-
-@router.get("/people", response_class=HTMLResponse)
-def people_page(request: Request, q: str = "", conn=Depends(get_conn)):
-    data = people_svc.list_people(conn, q=q or None)
-    return _render(request, "people.html", {**data, "q": q or "", "active_nav": "people"})
-
-
-@router.get("/settings", response_class=HTMLResponse)
-def settings_page(request: Request, conn=Depends(get_conn)):
-    return _render(
-        request,
-        "settings.html",
-        {
-            "categories": expenses_svc.list_categories(conn, include_inactive=True)["items"],
-            "tz": config.tz_name(),
-            "db_path": config.db_path(),
-            "schema_version": db.schema_version(conn),
-            "base_currency": "RUB",
-            "active_nav": "settings",
         },
     )
 
@@ -356,25 +308,18 @@ async def ui_task_status(request: Request, task_id: int, conn=Depends(get_conn))
             pass
     q = str(form.get("q", ""))
     view = str(form.get("view", "list") or "list")
-    filter_pid = _form_filter_project_id(form, fallback=_pid_or_none(form.get("project_id")))
     return _render_task_action(
         request,
         conn,
         task,
         view=view,
         q=q,
-        filter_project_id=filter_pid,
         project_id=task["project_id"],
     )
 
 
-def _pid_or_none(raw) -> int | None:
-    raw = str(raw or "")
-    return int(raw) if raw.isdigit() else None
-
-
 def _task_board_target(view: str) -> str:
-    return "#tasks-board" if view in ("global", "global_list") else "#tasks-block"
+    return "#tasks-block"
 
 
 def _render_task_action(
@@ -384,34 +329,23 @@ def _render_task_action(
     *,
     view: str,
     q: str,
-    filter_project_id: int | None = None,
     project_id: int | None = None,
 ) -> HTMLResponse:
     """Ответ после правки/удаления/статуса задачи: та же доска, те же фильтры."""
-    view = view or "list"
+    view = view if view in ("kanban", "list") else "list"
     pid = project_id if project_id is not None else task["project_id"]
-    if view in ("global", "global_list"):
-        board_view = "list" if view == "global_list" else "kanban"
-        return _render(
-            request,
-            _board_template(board_view),
-            _global_board_ctx(
-                conn, q=q, project_id=filter_project_id, view=board_view, chrome_oob=True
-            ),
-        )
     if view == "kanban":
         return _render(request, "partials/kanban_block.html", _tasks_ctx(conn, pid, q))
     return _render(request, "partials/tasks_block.html", _tasks_ctx(conn, pid, q))
 
 
-def _task_edit_ctx(conn, task_id: int, q: str, view: str, project_id: str) -> dict:
+def _task_edit_ctx(conn, task_id: int, q: str, view: str) -> dict:
     task = tasks_svc.get_task(conn, task_id)
-    view = view if view in ("kanban", "list", "global", "global_list") else "list"
+    view = view if view in ("kanban", "list") else "list"
     return {
         "t": task,
         "q": q or "",
         "view": view,
-        "project_id": project_id or "",
         "board_target": _task_board_target(view),
     }
 
@@ -422,11 +356,10 @@ def ui_task_edit_form(
     task_id: int,
     q: str = "",
     view: str = "list",
-    project_id: str = "",
     conn=Depends(get_conn),
 ):
     return _render(
-        request, "partials/task_edit_form.html", _task_edit_ctx(conn, task_id, q, view, project_id)
+        request, "partials/task_edit_form.html", _task_edit_ctx(conn, task_id, q, view)
     )
 
 
@@ -458,7 +391,6 @@ async def ui_task_edit(request: Request, task_id: int, conn=Depends(get_conn)):
         task,
         view=view,
         q=q,
-        filter_project_id=_form_filter_project_id(form, fallback=None),
         project_id=task["project_id"],
     )
 
@@ -477,7 +409,6 @@ async def ui_task_delete(request: Request, task_id: int, conn=Depends(get_conn))
 
     q = pick("q")
     view = pick("view") or "list"
-    raw_pid = pick("filter_project_id") or pick("project_id")
     task = tasks_svc.get_task(conn, task_id)
     tasks_svc.delete_task(conn, task_id)
     return _render_task_action(
@@ -486,7 +417,6 @@ async def ui_task_delete(request: Request, task_id: int, conn=Depends(get_conn))
         task,
         view=view,
         q=q,
-        filter_project_id=int(raw_pid) if str(raw_pid).isdigit() else None,
         project_id=task["project_id"],
     )
 
@@ -814,192 +744,3 @@ async def _render_project_head(request: Request, conn, project_id: int) -> HTMLR
         {"p": project, "s": s, "enums": ENUMS, "dl_suggest": _dl_suggest()},
     )
 
-
-# --- Глобальные задачи (/tasks): список и канбан ---
-
-
-def _normalize_view(view: str | None) -> str:
-    return view if view in TASK_VIEWS else "kanban"
-
-
-@router.get("/tasks", response_class=HTMLResponse)
-def tasks_global_page(
-    request: Request,
-    q: str = "",
-    project_id: str = "",
-    view: str = "kanban",
-    conn=Depends(get_conn),
-):
-    view = _normalize_view(view)
-    ctx = _global_board_ctx(conn, q=q, project_id=_pid_or_none(project_id), view=view)
-    ctx["active_nav"] = "tasks"
-    ctx["board_in_page"] = True
-    return _render(request, "tasks_global.html", ctx)
-
-
-@router.post("/ui/tasks", response_class=HTMLResponse)
-async def ui_create_task_global(request: Request, conn=Depends(get_conn)):
-    """Создание задачи из формы глобальной доски (канбан или список)."""
-    form = await request.form()
-    q = str(form.get("q", ""))
-    view = _normalize_view(str(form.get("view", "kanban")))
-    project_id_raw = str(form.get("project_id", "") or "")
-    project_id = int(project_id_raw) if project_id_raw.isdigit() else None
-    # Проект создания (project_id) и фильтр доски (filter_project_id) — разные вещи.
-    # Нет filter_project_id — старое поведение: фильтруем по выбранному проекту.
-    filter_pid = _form_filter_project_id(form, fallback=project_id)
-    values = {k: str(form.get(k, "")) for k in ("title", "priority", "deadline")}
-    values["project_id"] = project_id_raw
-    data: dict = {}
-    if str(form.get("title", "")).strip():
-        data["title"] = form["title"]
-    if form.get("priority"):
-        try:
-            data["priority"] = int(form["priority"])
-        except (TypeError, ValueError):
-            pass
-    if form.get("deadline"):
-        data["deadline"] = form["deadline"]
-    try:
-        if project_id is None:
-            raise errors.ValidationError("Выберите проект для задачи")
-        tasks_svc.create_task(conn, project_id, data)
-    except (errors.BortError, ValueError) as e:
-        ctx = _global_board_ctx(conn, q=q, project_id=filter_pid, view=view, chrome_oob=True)
-        ctx.update({"form_error": _err_message(e), "form_values": values})
-        return _render(request, _board_template(view), ctx)
-    return _render(
-        request,
-        _board_template(view),
-        _global_board_ctx(conn, q=q, project_id=filter_pid, view=view, chrome_oob=True),
-    )
-
-
-def _form_filter_project_id(form, *, fallback: int | None) -> int | None:
-    """Фильтр доски из формы. Если поля нет — старое поведение (fallback)."""
-    if "filter_project_id" not in form:
-        return fallback
-    return _pid_or_none(form.get("filter_project_id"))
-
-
-def _board_template(view: str) -> str:
-    return "partials/tasks_global_list.html" if view == "list" else "partials/kanban_global.html"
-
-
-def _global_board_ctx(
-    conn,
-    q: str = "",
-    project_id: int | None = None,
-    view: str = "kanban",
-    *,
-    chrome_oob: bool = False,
-) -> dict:
-    view = _normalize_view(view)
-    projects = projects_svc.list_projects(conn, limit=None)["items"]
-    return {
-        "tasks": tasks_svc.list_all_tasks(conn, q=q or None, project_id=project_id),
-        "projects": projects,
-        "project_name": next((p["name"] for p in projects if p["id"] == project_id), None),
-        "q": q or "",
-        "project_id": project_id,
-        "view": view,
-        "chrome_oob": chrome_oob,
-        "kanban_statuses": KANBAN_SEQUENCE,
-        "form_error": None,
-        "form_values": {},
-    }
-
-
-@router.get("/ui/tasks/board", response_class=HTMLResponse)
-def ui_global_board(
-    request: Request,
-    q: str = "",
-    project_id: str = "",
-    view: str = "kanban",
-    conn=Depends(get_conn),
-):
-    return _render(
-        request,
-        _board_template(_normalize_view(view)),
-        _global_board_ctx(
-            conn, q=q, project_id=_pid_or_none(project_id), view=view, chrome_oob=True
-        ),
-    )
-
-
-# --- htmx-партиалы: справочники ---
-
-
-@router.get("/ui/chats", response_class=HTMLResponse)
-def ui_chats_list(request: Request, q: str = "", conn=Depends(get_conn)):
-    return _render(request, "partials/chats_page_list.html", _chats_page_ctx(conn, q))
-
-
-@router.post("/ui/chats/{chat_id}/members", response_class=HTMLResponse)
-async def ui_add_chat_member(request: Request, chat_id: int, conn=Depends(get_conn)):
-    form = await request.form()
-    if form.get("person_id"):
-        try:
-            chats_svc.add_member(
-                conn, chat_id, {"person_id": int(form["person_id"]), "role": form.get("role") or None}
-            )
-        except (errors.BortError, ValueError):
-            pass
-    return _render(request, "partials/chats_page_list.html", _chats_page_ctx(conn))
-
-
-@router.delete("/ui/chats/{chat_id}/members/{person_id}", response_class=HTMLResponse)
-def ui_remove_chat_member(request: Request, chat_id: int, person_id: int, conn=Depends(get_conn)):
-    try:
-        chats_svc.remove_member(conn, chat_id, person_id)
-    except errors.BortError:
-        pass
-    return _render(request, "partials/chats_page_list.html", _chats_page_ctx(conn))
-
-
-@router.post("/ui/settings/backup", response_class=HTMLResponse)
-def ui_backup(request: Request):
-    import subprocess
-
-    script = Path(__file__).resolve().parents[3] / "scripts" / "backup.sh"
-    try:
-        proc = subprocess.run(
-            ["bash", str(script)], capture_output=True, text=True, timeout=60
-        )
-        if proc.returncode == 0 and proc.stdout.strip():
-            message = f"Бэкап создан: {proc.stdout.strip()}"
-        else:
-            message = f"Ошибка бэкапа: {proc.stderr.strip()[:300] or 'нет вывода'}"
-    except Exception as e:  # noqa: BLE001 — показываем любую проблему пользователю
-        message = f"Ошибка бэкапа: {e}"
-    return _render(request, "partials/backup_result.html", {"backup_message": message})
-
-
-@router.post("/ui/chats", response_class=HTMLResponse)
-async def ui_create_chat(request: Request, conn=Depends(get_conn)):
-    form = await request.form()
-    data: dict = {"title": form.get("title", "")}
-    if form.get("kind"):
-        data["kind"] = form["kind"]
-    if form.get("tg_chat_id"):
-        data["tg_chat_id"] = form["tg_chat_id"]
-    if form.get("tg_link"):
-        data["tg_link"] = form["tg_link"]
-    try:
-        chats_svc.create_chat(conn, data)
-    except (errors.BortError, ValueError):
-        pass
-    return RedirectResponse("/chats", status_code=303)
-
-
-@router.post("/ui/people", response_class=HTMLResponse)
-async def ui_create_person(request: Request, conn=Depends(get_conn)):
-    form = await request.form()
-    data: dict = {"full_name": form.get("full_name", "")}
-    if form.get("tg_username"):
-        data["tg_username"] = form["tg_username"]
-    try:
-        people_svc.create_person(conn, data)
-    except (errors.BortError, ValueError):
-        pass
-    return RedirectResponse("/people", status_code=303)

@@ -3,7 +3,6 @@
   <form hx-post="/ui/tasks/{{ t.id }}/edit" hx-target="{{ board_target }}" hx-swap="outerHTML">
     <input type="hidden" name="view" value="{{ view }}">
     <input type="hidden" name="q" value="{{ q }}">
-    <input type="hidden" name="filter_project_id" value="{{ project_id }}">
     <div class="form-grid">
       <label class="span2">Задача
         <input name="title" value="{{ t.title }}" required maxlength="300">

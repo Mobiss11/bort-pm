@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Борт{% endblock %}</title>
-<link rel="stylesheet" href="/static/app.css?v=no-summary-filters-1">
+<link rel="stylesheet" href="/static/app.css?v=no-sidebar-1">
 <script src="/static/vendor/htmx.min.js" defer></script>
-<script src="/static/app.js?v=ux-overhaul-2" defer></script>
+<script src="/static/app.js?v=no-sidebar-1" defer></script>
 </head>
 <body>
 <div class="shell">
-  <aside class="sidebar">
+  <header class="topbar">
     <a class="logo" href="/">
       <svg class="logo-mark" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
         <rect x="3" y="3" width="8" height="8" rx="2.2" fill="#4f46e5"/>
@@ -20,15 +20,7 @@
       </svg>
       <span>Борт</span>
     </a>
-    <nav class="side-nav">
-      <a href="/" {% if active_nav == 'summary' %}class="active"{% endif %}>Сводка</a>
-      <a href="/tasks" {% if active_nav == 'tasks' %}class="active"{% endif %}>Задачи</a>
-      <a href="/chats" {% if active_nav == 'chats' %}class="active"{% endif %}>Чаты</a>
-      <a href="/people" {% if active_nav == 'people' %}class="active"{% endif %}>Люди</a>
-      <a href="/settings" {% if active_nav == 'settings' %}class="active"{% endif %}>Настройки</a>
-    </nav>
-    <div class="sidebar-footer muted">localhost:8100</div>
-  </aside>
+  </header>
   <main class="content">
     {% block content %}{% endblock %}
   </main>

@@ -38,7 +38,6 @@
               hx-target="#kanban-block" hx-swap="outerHTML">
           <input type="hidden" name="view" value="kanban">
           <input type="hidden" name="q" value="{{ q|default('') }}">
-          <input type="hidden" name="filter_project_id" value="{{ project_id|default('') }}">
           <label>Задача <input name="title" value="{{ t.title }}" required maxlength="300"></label>
           <label>Приоритет
             <select name="priority">

@@ -46,29 +46,6 @@ document.body.addEventListener("htmx:beforeRequest", () => document.body.classLi
 document.body.addEventListener("htmx:afterRequest", () => document.body.classList.remove("is-loading"));
 document.body.addEventListener("htmx:sendError", () => document.body.classList.remove("is-loading"));
 
-/* Фильтры живут в URL: после любого действия/фильтрации синхронизируем адресную строку,
-   чтобы «Поделиться ссылкой» и «Назад» возвращали тот же вид. */
-function syncUrlFromFilters() {
-  const form = document.getElementById("board-filters") || document.getElementById("filters");
-  if (!form || !history.replaceState) return;
-  const params = new URLSearchParams();
-  new FormData(form).forEach((value, key) => {
-    if (String(value).trim()) params.set(key, String(value));
-  });
-  const qs = params.toString();
-  history.replaceState(null, "", location.pathname + (qs ? "?" + qs : ""));
-}
-document.addEventListener("change", (e) => {
-  if (e.target.closest && e.target.closest("#board-filters, #filters")) syncUrlFromFilters();
-});
-document.addEventListener("input", (e) => {
-  if (e.target.closest && e.target.closest("#board-filters, #filters") && e.target.type === "search") {
-    clearTimeout(window.__urlSyncTimer);
-    window.__urlSyncTimer = setTimeout(syncUrlFromFilters, 400);
-  }
-});
-document.addEventListener("htmx:afterSwap", syncUrlFromFilters);
-
 /* Фокус: после подмены фрагмента kanban возвращаем фокус на ту же карточку/кнопку,
    чтобы смена статуса с клавиатуры не сбрасывала пользователя в начало страницы.
    Ответ может содержать OOB-элементы (chrome), чей afterSwap приходит раньше
@@ -102,8 +79,8 @@ document.addEventListener("htmx:afterSwap", (e) => {
   }, 0);
 });
 
-/* Перетаскивание карточек задач между колонками канбана.
-   Бросок в колонку = POST /ui/tasks/<id>/status с view=kanban|global —
+/* Перетаскивание карточек задач между колонками канбана проекта.
+   Бросок в колонку = POST /ui/tasks/<id>/status с view=kanban —
    сервер вернёт обновлённую доску, мы подменяем фрагмент и запускаем
    htmx.process (ручная подмена DOM сама по себе htmx не обрабатывает). */
 document.addEventListener("dragstart", (e) => {
@@ -134,19 +111,11 @@ document.addEventListener("drop", (e) => {
   col.classList.remove("drop-target");
   const taskId = e.dataTransfer.getData("text/plain");
   if (!taskId) return;
-  const isGlobal = Boolean(col.closest("#global-kanban"));
-  const view = isGlobal ? "global" : "kanban";
-  // Фильтры берём с той доски, на которой произошёл бросок (раньше глобальная
-  // доска читала поиск карточки проекта — фильтры после drag-and-drop терялись).
-  const q = isGlobal
-    ? document.querySelector('#board-filters [name="q"]')?.value || ""
-    : document.querySelector('.task-search[name="q"]')?.value || "";
-  const projectFilter = document.querySelector('#board-filters [name="project_id"]');
+  const q = document.querySelector('.task-search[name="q"]')?.value || "";
   const params = new URLSearchParams({
     status: col.dataset.col,
-    view: view,
+    view: "kanban",
     q: q,
-    project_id: isGlobal ? (projectFilter?.value || "") : "",
   });
   fetch(`/ui/tasks/${taskId}/status`, {
     method: "POST",
@@ -155,15 +124,13 @@ document.addEventListener("drop", (e) => {
   })
     .then((r) => r.text())
     .then((html) => {
-      const targetId = isGlobal ? "tasks-board" : "kanban-block";
-      const target = document.getElementById(targetId);
+      const target = document.getElementById("kanban-block");
       const wrap = document.createElement("div");
       wrap.innerHTML = html;
       const fresh = wrap.firstElementChild;
-      if (target && fresh && fresh.id === targetId) {
+      if (target && fresh && fresh.id === "kanban-block") {
         target.replaceWith(fresh);
         window.htmx?.process(fresh); // свежая разметка содержит hx-атрибуты
-        syncUrlFromFilters();
       } else {
         window.location.reload(); // структура не совпала — надёжнее перерисовать
       }

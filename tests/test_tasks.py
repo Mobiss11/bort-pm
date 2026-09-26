@@ -138,49 +138,6 @@ def test_list_all_tasks_filters(conn):
     assert tasks.list_all_tasks(conn, q="несуществующая") == []
 
 
-# --- Страница /tasks: глобальный канбан ---
-
-
-def test_global_tasks_page(client):
-    p = client.post("/api/v1/projects", json={"name": "Глобальный"}).json()
-    client.post(f"/api/v1/projects/{p['id']}/tasks", json={"title": "Задача глобальная", "priority": 1})
-
-    r = client.get("/tasks")
-    assert r.status_code == 200
-    for head in ("К выполнению", "В работе", "На проверке", "Готово"):
-        assert head in r.text
-    assert "Задача глобальная" in r.text
-    assert "Глобальный" in r.text
-    assert 'href="/tasks"' in r.text          # пункт в сайдбаре
-    assert "kanban-count" in r.text           # счётчики колонок
-    assert "Проект: все" in r.text            # фильтр по проекту
-
-
-def test_global_board_filters_and_status_change(client):
-    p1 = client.post("/api/v1/projects", json={"name": "Первый"}).json()
-    p2 = client.post("/api/v1/projects", json={"name": "Второй"}).json()
-    t1 = client.post(f"/api/v1/projects/{p1['id']}/tasks", json={"title": "Задача один"}).json()
-    client.post(f"/api/v1/projects/{p2['id']}/tasks", json={"title": "Задача два"})
-
-    # Фильтр по проекту
-    r = client.get("/ui/tasks/board", params={"project_id": p2["id"]})
-    assert "Задача два" in r.text and "Задача один" not in r.text
-
-    # Поиск
-    r = client.get("/ui/tasks/board", params={"q": "один"})
-    assert "Задача один" in r.text and "Задача два" not in r.text
-
-    # Смена статуса из глобального канбана возвращает глобальный канбан
-    r = client.post(
-        f"/ui/tasks/{t1['id']}/status",
-        data={"status": "in_progress", "view": "global"},
-    )
-    assert r.status_code == 200
-    assert 'id="global-kanban"' in r.text
-    body = client.get("/api/v1/tasks/1").json()
-    assert body["status"] == "in_progress"
-
-
 # --- Карточка проекта: канбан — вид по умолчанию ---
 
 

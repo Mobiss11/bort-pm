@@ -1,5 +1,5 @@
 """Тесты новых UI-эндпоинтов: инлайн-правка приоритета/дедлайна, удаление затрат,
-создание задачи из глобального канбана, парсинг сумм с экзотическими пробелами."""
+смена статуса задачи из канбана проекта, парсинг сумм с экзотическими пробелами."""
 
 import pytest
 
@@ -79,26 +79,12 @@ def test_ui_delete_expense(client):
     assert r.json()["expenses"]["total_minor"] == 0
 
 
-def test_ui_create_task_global(client):
-    p = _mk_project(client, name="Канбан")
-    r = client.post(
-        "/ui/tasks",
-        data={"project_id": str(p["id"]), "title": "Новая из канбана", "priority": "2"},
-    )
-    assert r.status_code == 200
-    assert "Новая из канбана" in r.text
-    # без проекта — ошибка формы, но 200
-    r = client.post("/ui/tasks", data={"title": "Без проекта"})
-    assert r.status_code == 200
-    assert "Выберите проект" in r.text
-
-
 def test_ui_task_status_drag_endpoint(client):
     """Эндпоинт, на который ложится drag-and-drop: смена статуса и возврат доски."""
     p = _mk_project(client, name="Драг")
     t = _mk_task(client, p["id"], "Карточка")
-    r = client.post(f"/ui/tasks/{t['id']}/status", data={"status": "in_progress", "view": "global"})
+    r = client.post(f"/ui/tasks/{t['id']}/status", data={"status": "in_progress", "view": "kanban"})
     assert r.status_code == 200
-    assert 'id="global-kanban"' in r.text
+    assert 'id="kanban-block"' in r.text
     r = client.get(f"/api/v1/projects/{p['id']}/tasks")
     assert r.json()["items"][0]["status"] == "in_progress"
