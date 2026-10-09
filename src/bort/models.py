@@ -5,6 +5,8 @@
 
 import re
 from datetime import date as _date
+from datetime import datetime as _datetime
+from datetime import timezone as _timezone
 from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -12,10 +14,13 @@ from pydantic import ValidationError as PydanticValidationError
 
 from . import errors
 
-ProjectStatus = Literal["idea", "active", "paused", "closed"]
+ProjectStatus = Literal["idea", "discussion", "active", "review", "payment", "paused", "closed"]
 TaskStatus = Literal["todo", "in_progress", "review", "done", "cancelled"]
 ChatKind = Literal["private", "group"]
 PaymentKind = Literal["prepayment", "partial", "final"]
+WorkFormat = Literal["full_time", "part_time", "contract", "other"]
+WorkStatus = Literal["active", "paused", "finished"]
+AIUsageStatus = Literal["success", "error"]
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _CODE_RE = re.compile(r"^[a-z0-9_]+$")
@@ -59,6 +64,13 @@ def _check_tg_username(v: Optional[str]) -> Optional[str]:
     if v and v.startswith("@"):
         v = v[1:]
     return v or None
+
+
+def _clean_code(v: str) -> str:
+    v = _clean_required_text(v).lower()
+    if not re.match(r"^[a-z0-9_-]+$", v):
+        raise ValueError("Код: строчные латинские буквы, цифры, _ или -")
+    return v
 
 
 class _Base(BaseModel):
@@ -267,6 +279,85 @@ class PaymentCreate(_Base):
 
     _s = field_validator("paid_on")(_check_date)
     _c = field_validator("comment")(_clean_optional_text)
+
+
+# --- Работа (справочник постоянных проектов) ---
+
+
+class WorkProjectCreate(_Base):
+    name: str
+    client: Optional[str] = None
+    role: Optional[str] = None
+    format: WorkFormat = "other"
+    monthly_amount_minor: int = Field(default=0, ge=0)
+    currency: str = "RUB"
+    status: WorkStatus = "active"
+    started_on: Optional[str] = None
+    notes: Optional[str] = None
+    url: Optional[str] = None
+
+    _n = field_validator("name")(_clean_required_text)
+    _o = field_validator("client", "role", "notes", "url")(_clean_optional_text)
+    _c = field_validator("currency")(_check_currency)
+    _d = field_validator("started_on")(_check_date)
+
+
+class WorkProjectUpdate(_Base):
+    name: Optional[str] = None
+    client: Optional[str] = None
+    role: Optional[str] = None
+    format: Optional[WorkFormat] = None
+    monthly_amount_minor: Optional[int] = Field(default=None, ge=0)
+    currency: Optional[str] = None
+    status: Optional[WorkStatus] = None
+    started_on: Optional[str] = None
+    notes: Optional[str] = None
+    url: Optional[str] = None
+
+    _n = field_validator("name")(_clean_required_text)
+    _o = field_validator("client", "role", "notes", "url")(_clean_optional_text)
+    _c = field_validator("currency")(_check_currency)
+    _d = field_validator("started_on")(_check_date)
+
+
+# --- Использование AI ---
+
+
+class AIUsageCreate(_Base):
+    provider: str
+    agent: str = "unknown"
+    model: str
+    project_id: Optional[int] = Field(default=None, gt=0)
+    external_request_id: Optional[str] = Field(default=None, max_length=255)
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
+    cache_read_tokens: int = Field(default=0, ge=0)
+    cache_write_tokens: int = Field(default=0, ge=0)
+    cost_microusd: int = Field(default=0, ge=0)
+    duration_ms: Optional[int] = Field(default=None, ge=0)
+    status: AIUsageStatus = "success"
+    error_code: Optional[str] = Field(default=None, max_length=255)
+    occurred_at: Optional[str] = None
+
+    _p = field_validator("provider")(_clean_code)
+    _a = field_validator("agent")(_clean_required_text)
+    _m = field_validator("model")(_clean_required_text)
+    _r = field_validator("external_request_id", "error_code")(_clean_optional_text)
+
+    @field_validator("occurred_at")
+    @classmethod
+    def _occurred_at(cls, value: Optional[str]) -> Optional[str]:
+        value = _clean_optional_text(value)
+        if value is None:
+            return None
+        try:
+            normalized = value.replace("Z", "+00:00")
+            parsed = _datetime.fromisoformat(normalized)
+        except ValueError as exc:
+            raise ValueError("Время должно быть в формате ISO 8601") from exc
+        if parsed.tzinfo is None:
+            raise ValueError("Время должно содержать часовой пояс")
+        return parsed.astimezone(_timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 # --- Ответы (сущности) ---

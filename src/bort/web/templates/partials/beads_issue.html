@@ -1,0 +1,35 @@
+<li class="beads-issue{% if issue.status == 'closed' %} is-closed{% endif %}">
+  <div class="beads-issue-main">
+    <span class="prio-dot prio-{{ [issue.priority + 1, 4]|min }}" aria-hidden="true"></span>
+    <div><strong>{{ issue.title }}</strong><span class="beads-issue-id">{{ issue.id }}</span></div>
+  </div>
+  <div class="beads-issue-meta">
+    {% if beads.pending_issues.get(issue.id) %}<span class="badge status-paused" title="Команда по этой задаче уже отправлена и ждёт MacBook">↻ отправлено</span>{% endif %}
+    {% if issue.ready %}<span class="badge status-active">Можно брать</span>{% endif %}
+    {% if beads.view == 'list' %}<span class="badge status-{% if issue.status == 'in_progress' %}active{% elif issue.status == 'blocked' %}paused{% else %}idea{% endif %}">{{ {'open': 'Открыта', 'in_progress': 'В работе', 'blocked': 'Заблокирована', 'deferred': 'Отложена', 'closed': 'Закрыта'}.get(issue.status, issue.status) }}</span>{% endif %}
+    <span class="muted">P{{ issue.priority }} · {{ issue.type }}</span>
+  </div>
+  <form class="beads-issue-form" hx-target="#beads-content" hx-swap="innerHTML">
+    {% include "partials/beads_state_fields.html" %}
+    <input type="hidden" name="issue" value="{{ issue.id }}">
+    {% if issue.status == 'closed' %}
+    <button class="btn btn-tiny" type="button"
+            hx-post="/tasks/issues/reopen" hx-include="closest form"
+            aria-label="Вернуть задачу {{ issue.id }} в работу">Вернуть</button>
+    {% else %}
+    <select name="issue_status" aria-label="Статус задачи {{ issue.id }}"
+            hx-post="/tasks/issues/update" hx-include="closest form">
+      {% for code, label in [('open', 'Открыта'), ('in_progress', 'В работе'), ('blocked', 'Заблокирована'), ('deferred', 'Отложена')] %}
+      <option value="{{ code }}"{% if issue.status == code %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="issue_priority" aria-label="Приоритет задачи {{ issue.id }}"
+            hx-post="/tasks/issues/update" hx-include="closest form">
+      {% for level in range(5) %}<option value="{{ level }}"{% if issue.priority == level %} selected{% endif %}>P{{ level }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-tiny" type="button"
+            hx-post="/tasks/issues/close" hx-include="closest form"
+            aria-label="Закрыть задачу {{ issue.id }}">Закрыть</button>
+    {% endif %}
+  </form>
+</li>

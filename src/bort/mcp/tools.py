@@ -317,7 +317,7 @@ def summary_markdown(conn) -> str:
 
 
 def register_tools(server) -> None:
-    @server.tool(name="bort_project_list", description="Список проектов (краткая форма). Фильтры: status idea|active|paused|closed, priority 1..4 (1 — критичный), поиск q по названию")
+    @server.tool(name="bort_project_list", description="Список проектов (краткая форма). Фильтры: status idea|discussion|active|review|payment|paused|closed (discussion — «на обсуждении», вне денежных агрегатов; payment — «ожидаем оплату»), priority 1..4 (1 — критичный), поиск q по названию")
     def bort_project_list(status: str | None = None, priority: int | None = None, q: str | None = None, limit: int | None = None) -> dict:
         return _call(_project_list, status=status, priority=priority, q=q, limit=limit)
 

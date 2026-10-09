@@ -47,14 +47,36 @@ def date_ru(value) -> str:
 
 
 def datetime_ru(value) -> str:
-    """ISO UTC → «09.09.2026 13:45»."""
+    """ISO UTC → «09.09.2026 13:45»; мусор → «—», а не обрезанные буквы."""
     if not value:
         return "—"
     s = str(value)
+    if len(s) < 16 or not s[:4].isdigit() or s[4] != "-":
+        return "—"
+    return f"{s[8:10]}.{s[5:7]}.{s[0:4]} {s[11:16]}"
+
+
+def iso_local(value, fmt: str = "%d.%m.%Y %H:%M") -> str:
+    """ISO-время (UTC) → локальное время Борта (BORT_TZ), а не сырой UTC.
+
+    Дашборды провайдеров показывают сбросы в местном времени; без конверсии
+    карточка Z.AI/Codex показывала UTC и цифры не сходились с панелью.
+    """
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+
+    from .. import config
+
+    if not value:
+        return "—"
+    text = str(value)
     try:
-        return f"{s[8:10]}.{s[5:7]}.{s[0:4]} {s[11:16]}"
-    except IndexError:
-        return s
+        moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return datetime_ru(text)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(ZoneInfo(config.tz_name())).strftime(fmt)
 
 
 def days_left_str(value, today=None) -> str:
@@ -120,6 +142,19 @@ def pct(done, total):
     return round(int(done) / int(total) * 100)
 
 
+def usd_micros(value) -> str:
+    """Микродоллары → компактная сумма: 1250000 → «$1.25»."""
+    try:
+        amount = int(value) / 1_000_000
+    except (TypeError, ValueError):
+        return "—"
+    if amount == 0:
+        return "$0.00"
+    if amount < 0.01:
+        return f"${amount:.4f}"
+    return f"${amount:,.2f}".replace(",", " ")
+
+
 def url_query(path: str, params: dict | None = None) -> str:
     """Собрать внутренний URL: path + query, где КАЖДОЕ значение закодировано.
 
@@ -145,12 +180,14 @@ def register_filters(env) -> None:
     env.filters["rub_short"] = rub_short
     env.filters["date_ru"] = date_ru
     env.filters["datetime_ru"] = datetime_ru
+    env.filters["iso_local"] = iso_local
     env.filters["days_left_str"] = days_left_str
     env.filters["label"] = label
     env.filters["state_title"] = state_title
     env.filters["dl_state"] = dl_state
     env.filters["progress"] = progress
     env.filters["pct"] = pct
+    env.filters["usd_micros"] = usd_micros
     env.filters["plural_ru"] = plural_ru
     env.filters["url_query"] = url_query
     env.filters["return_to"] = return_to

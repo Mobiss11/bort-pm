@@ -1,0 +1,224 @@
+{% if beads.link_target %}
+<section class="beads-link-panel" aria-label="Связь с проектом сводки">
+  <div>
+    <h2>Связать «{{ beads.link_target.name }}» с задачами</h2>
+    <p class="muted">Выберите локальный проект. Задачи останутся в Beads, связь можно заменить или снять.</p>
+    {% if beads.link_error %}<p class="form-error" role="alert">{{ beads.link_error }}</p>{% endif %}
+  </div>
+  {% if beads.projects %}
+  <form method="post" action="/tasks/links/{{ beads.link_target.id }}" class="beads-link-form">
+    <label for="beads-link-select">Проект с задачами</label>
+    <select id="beads-link-select" name="beads_project" required>
+      <option value=""{% if not beads.linked_name %} selected{% endif %}>Выберите проект</option>
+      {% for item in beads.projects %}
+      {% set occupant = beads.links.get(item.name) %}
+      <option value="{{ item.name }}"{% if occupant and occupant.id != beads.link_target.id %} disabled{% endif %}{% if item.name == beads.linked_name %} selected{% endif %}>{{ item.name }}{% if occupant and occupant.id != beads.link_target.id %} · связан с {{ occupant.name }}{% endif %}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-primary" type="submit">Сохранить связь</button>
+  </form>
+  {% endif %}
+  {% if beads.linked_name %}
+  <form method="post" action="/tasks/links/{{ beads.link_target.id }}/remove" class="beads-unlink-form">
+    <button class="btn btn-small" type="submit">Отвязать</button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if beads.command_error %}<p class="form-error" role="alert">{{ beads.command_error }}</p>{% endif %}
+{% if beads.reset_drafts %}<span data-draft-reset="{{ beads.reset_drafts|join(',') }}" hidden></span>{% endif %}
+
+{% if beads.commands.pending or beads.commands.errors %}
+<section class="beads-commands" aria-label="Команды к Beads">
+  {% if beads.commands.pending %}
+  <p class="muted">Отправлено и ждёт MacBook: {{ beads.commands.count }}{% if beads.snapshot_mode %} · список обновится сам{% endif %}</p>
+  <ul class="beads-command-list">
+    {% for c in beads.commands.pending %}
+    <li class="beads-command is-pending"><span class="beads-command-project">{{ c.project if c.project != '*' else 'Все проекты' }}</span> {% include "partials/beads_command_text.html" %} <span class="muted">ждём MacBook</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if beads.commands.errors %}
+  <ul class="beads-command-list">
+    {% for c in beads.commands.errors %}
+    <li class="beads-command is-error"><span class="beads-command-project">{{ c.project if c.project != '*' else 'Все проекты' }}</span> {% include "partials/beads_command_text.html" %} <span class="beads-command-error">{{ c.error or 'ошибка выполнения' }}</span>
+      <form hx-post="/tasks/commands/{{ c.id }}/dismiss" hx-target="#beads-content" hx-swap="innerHTML">
+        {% include "partials/beads_state_fields.html" %}
+        <button class="btn btn-tiny" type="submit">Снять</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if beads.projects %}
+<section class="beads-totals" aria-label="Состояние проектов">
+  <div class="total-card"><span class="total-label">Проектов</span><strong class="total-value">{{ beads.projects|length }}</strong></div>
+  <div class="total-card"><span class="total-label">Открыто</span><strong class="total-value">{{ beads.totals.open }}</strong></div>
+  <div class="total-card"><span class="total-label">В работе</span><strong class="total-value">{{ beads.totals.in_progress }}</strong></div>
+  <div class="total-card"><span class="total-label">Готовы к работе</span><strong class="total-value">{{ beads.totals.ready }}</strong></div>
+</section>
+<div class="beads-toolbar">
+  <p class="muted">Показаны только доступные проекты · {% if beads.source.mode == 'snapshot' %}снимок MacBook: {{ beads.source.synced_at or 'ещё не получен' }}{% else %}кеш до 2 минут{% endif %}.</p>
+  <div class="beads-toolbar-actions">
+    {% if beads.snapshot_mode %}
+    <form hx-post="/tasks/sync" hx-target="#beads-content" hx-swap="innerHTML">
+      {% include "partials/beads_state_fields.html" %}
+      <button class="btn btn-small" type="submit">Синхронизировать с MacBook</button>
+    </form>
+    {% endif %}
+    <a class="btn btn-small" href="/tasks?full=1&amp;refresh=1&amp;{{ beads.refresh_query }}"
+       hx-get="/ui/beads?refresh=1&amp;{{ beads.refresh_query }}" hx-target="#beads-content" hx-swap="innerHTML">{{ 'Проверить снимок' if beads.source.mode == 'snapshot' else 'Обновить данные' }}</a>
+  </div>
+</div>
+{% if beads.source.stale %}<p class="form-error" role="status">{% if beads.source.error %}Снимок MacBook не получен или повреждён.{% else %}Снимок MacBook устарел: новые изменения задач пока не поступают.{% endif %}</p>{% endif %}
+{% if beads.commands.pending and beads.snapshot_mode %}
+{# Пока команды ждут MacBook, список сам подтягивает свежий снимок. Черновики форм
+   переживают подмену: app.js сохраняет введённое и открытые details. #}
+<span class="beads-autorefresh" aria-hidden="true"
+      hx-get="/ui/beads?refresh=1&amp;{{ beads.refresh_query }}"
+      hx-trigger="every 20s" hx-target="#beads-content" hx-swap="innerHTML"></span>
+{% endif %}
+<div class="beads-layout{% if beads.selected %} has-selection{% endif %}">
+  <nav class="beads-projects" aria-label="Проекты с задачами">
+    <h2>Проекты</h2>
+    <div class="beads-project-list">
+      {% for item in beads.projects %}
+      <div class="beads-project-row">
+        <a class="beads-project{% if beads.selected and beads.selected.name == item.name %} is-selected{% endif %}"
+           href="/tasks?project={{ item.name|urlencode }}{% if beads.link_target %}&amp;link_project_id={{ beads.link_target.id }}{% endif %}" {% if beads.selected and beads.selected.name == item.name %}aria-current="page"{% endif %}>
+          <span class="beads-project-name">{{ item.name }}</span>
+          <span class="beads-project-numbers">{{ item.counts.open + item.counts.in_progress }} активных · {{ item.ready }} готовы</span>
+          {% if beads.links.get(item.name) %}<span class="beads-project-bort">В сводке: {{ beads.links[item.name].name }}</span>{% endif %}
+        </a>
+        <form class="beads-hide-form" hx-post="/tasks/projects/hide" hx-target="#beads-content" hx-swap="innerHTML"
+              hx-confirm="Убрать «{{ item.name }}» из списка Борта? Задачи и файлы на Mac не удаляются.">
+          {% include "partials/beads_state_fields.html" %}
+          <input type="hidden" name="name" value="{{ item.name }}">
+          <button class="btn btn-tiny beads-hide-btn" type="submit" title="Убрать из списка (на Mac ничего не удаляется)"
+                  aria-label="Убрать проект «{{ item.name }}» из списка">×</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% if beads.hidden_projects %}
+    <details class="beads-hidden" data-draft="hidden-projects">
+      <summary class="muted">Скрытые · {{ beads.hidden_projects|length }}</summary>
+      <ul class="beads-hidden-list">
+        {% for name in beads.hidden_projects %}
+        <li>
+          <span>{{ name }}</span>
+          <form hx-post="/tasks/projects/unhide" hx-target="#beads-content" hx-swap="innerHTML">
+            {% include "partials/beads_state_fields.html" %}
+            <input type="hidden" name="name" value="{{ name }}">
+            <button class="btn btn-tiny" type="submit">Вернуть</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      <p class="muted beads-hidden-note">Скрытие действует только в Борте: задачи и файлы на Mac остаются.</p>
+    </details>
+    {% endif %}
+  </nav>
+  <section class="beads-detail" aria-label="Задачи проекта">
+  {% if beads.selected %}
+    <div class="beads-detail-head">
+      <div><h2>{{ beads.selected.name }}</h2>
+        <p class="muted">Получено: {{ beads.selected.checked_at }}</p>
+        {% if beads.links.get(beads.selected.name) %}
+        <p class="beads-associated">Проект в сводке: <a href="/projects/{{ beads.links[beads.selected.name].id }}">{{ beads.links[beads.selected.name].name }}</a></p>
+        {% endif %}
+      </div>
+      <span class="muted beads-readonly-note">Задачи создаются и меняются здесь — команды выполняет MacBook.</span>
+    </div>
+    <details class="beads-new-task" data-draft="new-task"{% if beads.new_task_open %} open{% endif %}>
+      <summary class="btn btn-small">+ Новая задача</summary>
+      <form class="beads-new-task-form" hx-post="/tasks/issues/create" hx-target="#beads-content" hx-swap="innerHTML">
+        {% include "partials/beads_state_fields.html" %}
+        <label class="span2">Название
+          <input name="task_title" required maxlength="200" placeholder="Что нужно сделать">
+        </label>
+        <label>Тип
+          <select name="task_type">
+            {% for code in beads.task_types %}<option value="{{ code }}"{% if code == 'task' %} selected{% endif %}>{{ code }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Приоритет
+          <select name="task_priority">
+            {% for level in range(5) %}<option value="{{ level }}"{% if level == 2 %} selected{% endif %}>P{{ level }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="span2">Описание
+          <input name="task_description" maxlength="4000" placeholder="Необязательно">
+        </label>
+        <div class="form-actions">
+          <button class="btn btn-primary btn-small" type="submit">Создать задачу</button>
+        </div>
+      </form>
+    </details>
+    <form class="beads-quick-switch" method="get" action="/tasks">
+      {% if beads.link_target %}<input type="hidden" name="link_project_id" value="{{ beads.link_target.id }}">{% endif %}
+      <label for="beads-switch">Другой проект</label>
+      <select id="beads-switch" name="project">
+        {% for item in beads.projects %}<option value="{{ item.name }}"{% if item.name == beads.selected.name %} selected{% endif %}>{{ item.name }}</option>{% endfor %}
+      </select>
+      <button class="btn" type="submit">Открыть</button>
+    </form>
+    {% if beads.selected.issues %}
+    <form class="beads-filters" method="get" action="/tasks">
+      <input type="hidden" name="project" value="{{ beads.selected.name }}">
+      <input type="hidden" name="view" value="{{ beads.view }}">
+      {% if beads.link_target %}<input type="hidden" name="link_project_id" value="{{ beads.link_target.id }}">{% endif %}
+      <label>Поиск <input type="search" name="q" value="{{ beads.q }}" maxlength="120" placeholder="Название или ID"></label>
+      <label>Статус <select name="status">
+        {% for code, label in [('active', 'Не закрытые'), ('all', 'Все'), ('open', 'Открытые'), ('in_progress', 'В работе'), ('blocked', 'Заблокированы'), ('deferred', 'Отложены'), ('closed', 'Закрытые')] %}
+        <option value="{{ code }}"{% if beads.status == code %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select></label>
+      <label>Приоритет <select name="priority">
+        <option value="all">Любой</option>
+        {% for level in range(5) %}<option value="{{ level }}"{% if beads.priority == level|string %} selected{% endif %}>P{{ level }}</option>{% endfor %}
+      </select></label>
+      <label>Тип <select name="type">
+        <option value="all">Любой</option>
+        {% for item in beads.kinds %}<option value="{{ item }}"{% if beads.kind == item %} selected{% endif %}>{{ item }}</option>{% endfor %}
+      </select></label>
+      <button class="btn btn-primary" type="submit">Показать</button>
+    </form>
+    <div class="beads-view-bar">
+      <div class="subtabs" aria-label="Вид задач">
+        <a class="subtab{% if beads.view == 'kanban' %} active{% endif %}" href="{{ beads.view_urls.kanban }}" {% if beads.view == 'kanban' %}aria-current="page"{% endif %}>Канбан</a>
+        <a class="subtab{% if beads.view == 'list' %} active{% endif %}" href="{{ beads.view_urls.list }}" {% if beads.view == 'list' %}aria-current="page"{% endif %}>Список</a>
+      </div>
+      <span class="beads-count muted">Показано {{ beads.issues|length }} из {{ beads.selected.issues|length }} задач</span>
+    </div>
+    {% if beads.issues %}
+      {% if beads.view == 'kanban' %}
+      <div class="beads-kanban">
+        {% for column in beads.columns %}
+        <section class="beads-kanban-col" aria-label="{{ column.label }}">
+          <h3>{{ column.label }} <span class="kanban-count">{{ column.issues|length }}</span></h3>
+          <ul class="beads-kanban-list">
+            {% for issue in column.issues %}{% include "partials/beads_issue.html" %}{% else %}<li class="kanban-empty">Задач нет</li>{% endfor %}
+          </ul>
+        </section>
+        {% endfor %}
+      </div>
+      {% else %}
+      <ul class="beads-issues">
+        {% for issue in beads.issues %}{% include "partials/beads_issue.html" %}{% endfor %}
+      </ul>
+      {% endif %}
+    {% else %}<div class="empty-soft">По выбранным фильтрам задач нет. <a href="/tasks?project={{ beads.selected.name|urlencode }}">Сбросить фильтры</a></div>{% endif %}
+    {% else %}<div class="empty-soft">В этом проекте пока нет задач. Добавьте первую кнопкой «+ Новая задача».</div>{% endif %}
+  {% else %}
+    <div class="empty-soft beads-prompt">Выберите проект, чтобы посмотреть его задачи.</div>
+  {% endif %}
+  </section>
+</div>
+{% else %}
+<div class="empty-soft">{% if beads.source.mode == 'snapshot' %}Доступных задач в снимке пока нет. Проверьте синхронизацию с MacBook.{% else %}Доступных проектов с задачами пока нет. Проверьте <code>BORT_BEADS_ROOTS</code> и наличие работающей базы Beads в проектах.{% endif %}</div>
+{% endif %}

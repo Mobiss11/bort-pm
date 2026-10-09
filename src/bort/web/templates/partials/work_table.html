@@ -1,0 +1,50 @@
+{# Список постоянных проектов. Смена статуса и удаление перерисовывают таблицу
+   целиком; итоги едут тем же ответом OOB-свопом (work_totals_oob). #}
+<div class="table-scroll">
+<table class="projects work-table">
+  <thead>
+    <tr>
+      <th>Проект</th>
+      <th>Роль / формат</th>
+      <th class="num">В месяц</th>
+      <th>Статус</th>
+      <th>Начало</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for w in items %}
+    <tr data-work-id="{{ w.id }}">
+      <td data-label="Проект">
+        <span class="project-link">{{ w.name }}</span>
+        {% if w.client %}<span class="muted"> · {{ w.client }}</span>{% endif %}
+      </td>
+      <td data-label="Роль / формат">
+        {% if w.role %}{{ w.role }}<span class="muted"> · </span>{% endif %}<span class="muted">{{ format_labels.get(w.format, w.format) }}</span>
+      </td>
+      <td data-label="В месяц" class="num">{{ w.monthly_amount_minor|rub_short(w.currency) }}</td>
+      <td data-label="Статус">
+        <select class="status-select" name="status" aria-label="Статус проекта «{{ w.name }}»"
+                title="Сменить статус"
+                hx-post="/ui/work/{{ w.id }}/status" hx-target="#work-table-box" hx-swap="innerHTML">
+          {% for code, title in work_statuses %}
+          <option value="{{ code }}" {{ 'selected' if w.status == code else '' }}>{{ title }}</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td data-label="Начало" class="nowrap">{{ w.started_on|date_ru }}</td>
+      <td data-label="Действия" class="nowrap">
+        <button type="button" class="btn btn-small"
+                hx-get="/ui/work/{{ w.id }}/edit" hx-target="#work-form-box" hx-swap="innerHTML">Изменить</button>
+        <button type="button" class="btn btn-small link-danger"
+                hx-delete="/ui/work/{{ w.id }}" hx-target="#work-table-box" hx-swap="innerHTML"
+                hx-confirm="Удалить проект «{{ w.name }}»?">Удалить</button>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="empty">Пока пусто — добавьте первый проект</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if work_totals_oob %}{% include "partials/work_totals.html" %}{% endif %}

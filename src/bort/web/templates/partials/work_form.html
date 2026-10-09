@@ -1,0 +1,60 @@
+<form class="inline-form" hx-post="{{ action|default('/ui/work') }}" hx-target="#work-form-box" hx-swap="innerHTML">
+  {% if form_error %}<div class="form-error">{{ form_error }}</div>{% endif %}
+  {% if saved %}<div class="form-ok">Сохранено</div>{% endif %}
+  <div class="form-grid">
+    <label class="span2">Название
+      <input name="name" required maxlength="200" placeholder="Название проекта" value="{{ form_values.get('name','') }}">
+    </label>
+    <label>Клиент
+      <input name="client" maxlength="200" placeholder="Необязательно" value="{{ form_values.get('client','') }}">
+    </label>
+    <label>Роль
+      <input name="role" maxlength="200" placeholder="Необязательно" value="{{ form_values.get('role','') }}">
+    </label>
+    <label>Формат
+      <select name="format">
+        {% for code, title in work_formats %}
+        <option value="{{ code }}" {{ 'selected' if form_values.get('format','other') == code else '' }}>{{ title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>В месяц, ₽
+      <input name="monthly" inputmode="decimal" placeholder="150 000" value="{{ form_values.get('monthly','') }}">
+    </label>
+    <label>Валюта
+      <select name="currency">
+        <option value="RUB" {{ 'selected' if form_values.get('currency','RUB') == 'RUB' else '' }}>RUB</option>
+        <option value="USD" {{ 'selected' if form_values.get('currency') == 'USD' else '' }}>USD</option>
+        <option value="EUR" {{ 'selected' if form_values.get('currency') == 'EUR' else '' }}>EUR</option>
+      </select>
+    </label>
+    <label>Статус
+      <select name="status">
+        {% for code, title in work_statuses %}
+        <option value="{{ code }}" {{ 'selected' if form_values.get('status','active') == code else '' }}>{{ title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Начало
+      <input type="date" name="started_on" value="{{ form_values.get('started_on','') }}">
+    </label>
+    <label class="span2">Ссылка
+      <input name="url" maxlength="500" placeholder="Необязательно" value="{{ form_values.get('url','') }}">
+    </label>
+    <label class="span2">Заметки
+      <textarea name="notes" placeholder="Необязательно">{{ form_values.get('notes','') }}</textarea>
+    </label>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">{{ 'Сохранить' if w else 'Создать' }}</button>
+    <button type="button" class="btn" onclick="document.getElementById('work-form-box').innerHTML=''">Отмена</button>
+  </div>
+</form>
+{% if saved %}
+{# Список и итоги обновляются OOB-свопом: форма живёт в #work-form-box и не должна
+   сама превращаться в таблицу. #}
+<div id="work-table-box" hx-swap-oob="innerHTML">
+  {% include "partials/work_table.html" %}
+</div>
+{% with work_totals_oob = True %}{% include "partials/work_totals.html" %}{% endwith %}
+{% endif %}

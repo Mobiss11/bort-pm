@@ -285,7 +285,7 @@ def test_health(client):
     body = r.json()
     assert body["status"] == "ok"
     assert body["wal"] is True
-    assert body["schema_version"] == "003_payments"
+    assert body["schema_version"] == "009_work_projects"
     assert body["db_path"].endswith("api-test.db")
 
 

@@ -1,0 +1,62 @@
+<article class="provider-card" id="openrouter-card">
+  <header class="provider-card-head">
+    <div class="provider-identity">
+      <span class="provider-mark openrouter-mark" aria-hidden="true">O</span>
+      <div><h2>OpenRouter</h2><span>баланс аккаунта и расход ключа</span></div>
+    </div>
+    <span class="source-state state-{{ provider.status }}">
+      {% if provider.status == "available" %}Актуально{% elif provider.status == "not_configured" %}Не настроено{% elif provider.status == "error" %}Ошибка{% else %}Нет данных{% endif %}
+    </span>
+  </header>
+
+  <div class="provider-body">
+    {% if provider.data and provider.data.windows %}
+      {% set b = provider.data.balance or {} %}
+      <div class="limit-list">
+        <div class="limit-item">
+          <div class="limit-line"><span>Остаток на аккаунте</span><strong>${{ '%.2f'|format(b.remaining or 0) }}</strong></div>
+          <div class="limit-track" role="progressbar" aria-label="Остаток кредитов OpenRouter"
+               aria-valuenow="{{ b.remaining_percent or 0 }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ b.remaining_percent or 0 }}%"></span></div>
+          <small>израсходовано ${{ '%.2f'|format(b.usage or 0) }} из пополнений ${{ '%.2f'|format(b.credits or 0) }}</small>
+        </div>
+      </div>
+      {% set k = provider.data.key_usage or {} %}
+      <p class="ai-disclaimer">Этот ключ: сегодня ${{ '%.4f'|format(k.daily or 0) }} · за 7 дней ${{ '%.4f'|format(k.weekly or 0) }} · за месяц ${{ '%.4f'|format(k.monthly or 0) }}{% if k.limit is not none %} · лимит ключа ${{ '%.2f'|format(k.limit) }}{% endif %}</p>
+      {% if provider.data.models %}
+      <div class="limit-list">
+        <div class="limit-item"><div class="limit-line"><span>Расход по моделям за 7 дней</span></div></div>
+        {% for row in provider.data.models %}
+        <div class="limit-item">
+          <div class="limit-line"><span>{{ row.model }}</span><strong>${{ '%.4f'|format(row.usage) }}</strong></div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if provider.data.api_keys %}
+      <div class="limit-list">
+        <div class="limit-item"><div class="limit-line"><span>Ключи (расход всего)</span></div></div>
+        {% for row in provider.data.api_keys %}
+        <div class="limit-item">
+          <div class="limit-line"><span>{{ row.name }}</span><strong>${{ '%.4f'|format(row.usage) }}</strong></div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if provider.data.management_note and not provider.data.models and not provider.data.api_keys %}
+      <p class="ai-disclaimer alert-orange">{{ provider.data.management_note }}</p>
+      {% endif %}
+    {% else %}
+      <div class="provider-empty">{{ provider.message or "Нажмите «Обновить», чтобы прочитать баланс OpenRouter." }}</div>
+    {% endif %}
+  </div>
+
+  <footer class="provider-card-foot">
+    <div class="source-meta">
+      <span>{{ provider.source }}</span>
+      {% if provider.checked_at %}<small>Проверено {{ provider.checked_at|iso_local }}</small>{% endif %}
+      {% if provider.captured_at %}<small>Данные от {{ provider.captured_at|iso_local }}</small>{% endif %}
+    </div>
+    <button class="btn btn-small" type="button" hx-post="/ui/ai/providers/openrouter/refresh"
+            hx-target="#openrouter-card" hx-swap="outerHTML">Обновить</button>
+  </footer>
+</article>

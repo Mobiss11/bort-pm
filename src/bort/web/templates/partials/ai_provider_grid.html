@@ -1,0 +1,8 @@
+<section class="provider-grid" id="provider-grid" aria-label="Балансы и лимиты">
+  {% with provider=providers.claude %}{% include "partials/ai_claude_card.html" %}{% endwith %}
+  {% with provider=providers.codex %}{% include "partials/ai_codex_card.html" %}{% endwith %}
+  {% with provider=providers.qwen %}{% include "partials/ai_qwen_card.html" %}{% endwith %}
+  {% with provider=providers.zai %}{% include "partials/ai_zai_card.html" %}{% endwith %}
+  {% with provider=providers.deepseek %}{% include "partials/ai_deepseek_card.html" %}{% endwith %}
+  {% with provider=providers.openrouter %}{% include "partials/ai_openrouter_card.html" %}{% endwith %}
+</section>

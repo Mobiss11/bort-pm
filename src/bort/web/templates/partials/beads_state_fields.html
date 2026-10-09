@@ -1,0 +1,9 @@
+{# Текущее состояние страницы задач: едет скрытыми полями в каждом POST, чтобы
+   ответ вернул ту же сцену (проект, фильтры, вид, связь). #}
+<input type="hidden" name="project" value="{{ beads.selected.name if beads.selected else '' }}">
+<input type="hidden" name="status" value="{{ beads.status }}">
+<input type="hidden" name="priority" value="{{ beads.priority }}">
+<input type="hidden" name="type" value="{{ beads.kind }}">
+<input type="hidden" name="q" value="{{ beads.q }}">
+<input type="hidden" name="view" value="{{ beads.view }}">
+{% if beads.link_target %}<input type="hidden" name="link_project_id" value="{{ beads.link_target.id }}">{% endif %}

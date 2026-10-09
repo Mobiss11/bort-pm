@@ -1,8 +1,13 @@
-{# Строка проекта: имя, статус (правится на месте), оплата, дедлайн, следующий шаг.
-   Затраты, маржа и редкая правка — за раскрытием, чтобы главный экран оставался читаемым. #}
 {% set row_back = '/'|return_to({'q': q|default(''), 'tasks': tasks_filter|default('')}) %}
-<tr class="project-row st-{{ p.deadline_state }} prio-row-{{ p.priority }}">
+<tr class="project-row st-{{ p.deadline_state }} prio-row-{{ p.priority }}" data-project-id="{{ p.id }}">
   <td data-label="Проект">
+    <button type="button" class="drag-handle" draggable="true" data-project-id="{{ p.id }}"
+            aria-label="Переместить проект «{{ p.name }}»: стрелки вверх и вниз меняют порядок"
+            title="Перетащите, чтобы изменить порядок; стрелки ↑/↓ — то же с клавиатуры">⠿</button>
+    <span class="row-move">
+      <button type="button" class="btn btn-tiny" data-move="up" aria-label="Переместить проект «{{ p.name }}» выше">↑</button>
+      <button type="button" class="btn btn-tiny" data-move="down" aria-label="Переместить проект «{{ p.name }}» ниже">↓</button>
+    </span>
     <a class="project-link" href="/projects/{{ p.id }}?return_to={{ row_back }}">{{ p.name }}</a>
     <span class="prio-tag prio-{{ p.priority }}" title="Приоритет: {{ p.priority|label('priorities') }}">P{{ p.priority }}</span>
   </td>
@@ -16,10 +21,9 @@
     <span class="days d-{{ p.next_task.deadline|dl_state }}">{{ p.next_task.deadline|days_left_str }}</span>
     {% endif %}
     <span class="muted next-status">{{ p.next_task.status|label('task_statuses') }}</span>
-    {% elif p.status == 'closed' %}
-    <span class="muted">—</span>
     {% else %}
-    <a class="btn btn-small add-task-cta" href="/projects/{{ p.id }}?return_to={{ row_back }}">+ Задача</a>
+    {# Кнопки «+ Задача» в строке нет: задачи ведутся в карточке проекта. #}
+    <span class="muted">—</span>
     {% endif %}
   </td>
   <td data-label="Ещё" class="row-extra">
@@ -32,6 +36,11 @@
         <div class="row-edit">
           <label>Приоритет {% include "partials/prio_cell.html" %}</label>
           <label>Дедлайн {% include "partials/deadline_edit.html" %}</label>
+          {% if (beads_links|default({})).get(p.id) %}
+          <a class="btn btn-small" href="/tasks?link_project_id={{ p.id }}">Открыть задачи ↗</a>
+          {% else %}
+          <a class="btn btn-small" href="/tasks?link_project_id={{ p.id }}">Привязать к задачам</a>
+          {% endif %}
         </div>
       </div>
     </details>

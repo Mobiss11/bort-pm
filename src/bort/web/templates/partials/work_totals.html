@@ -1,0 +1,25 @@
+{# Итоги постоянных проектов: главное — «приходит в месяц» по активным.
+   Чужие валюты в суммы не подмешиваются и перечисляются отдельной строкой.
+   Оформление — те же классы, что у панели портфеля «Сводки». #}
+{% set t = totals %}
+<section class="portfolio" aria-label="Постоянные проекты: ежемесячная плата" id="work-totals-panel"
+         {% if work_totals_oob %}hx-swap-oob="outerHTML"{% endif %}>
+  <div class="portfolio-main">
+    <div class="pf-figure">
+      <div class="pf-label">Приходит в месяц · {{ t.currency }}</div>
+      <div class="pf-value">{{ t.active_minor|rub_short(t.currency) }}</div>
+      <div class="pf-sub muted">Активных проектов: {{ t.counts.active }}</div>
+    </div>
+    <div class="pf-figure pf-rest">
+      <div class="pf-label">В паузе</div>
+      <div class="pf-value">{{ t.paused_minor|rub_short(t.currency) }}</div>
+      <div class="pf-sub muted">Потенциал: {{ t.counts.paused }} в паузе · завершено: {{ t.counts.finished }}</div>
+    </div>
+  </div>
+  <div class="pf-secondary">
+    <span class="pf-mini"><span class="muted">Всего проектов</span> <b>{{ t.counts.total }}</b></span>
+    {% if t.foreign %}
+    <span class="chip chip-muted">Вне итогов ({{ t.currency }}): {% for f in t.foreign %}{{ f.name }} — {{ f.monthly_amount_minor|rub_short(f.currency) }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
+    {% endif %}
+  </div>
+</section>

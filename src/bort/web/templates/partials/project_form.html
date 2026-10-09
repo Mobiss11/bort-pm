@@ -1,6 +1,7 @@
 <form class="inline-form" hx-post="/ui/projects" hx-target="#project-form-box" hx-swap="innerHTML">
   <input type="hidden" name="scope" value="{{ scope|default('open') }}">
   <input type="hidden" name="q" value="{{ q|default('') }}">
+  {% if view == 'kanban' %}<input type="hidden" name="view" value="kanban">{% endif %}
   {% if form_error %}<div class="form-error">{{ form_error }}</div>{% endif %}
   {% if created %}<div class="form-ok">Проект создан</div>{% endif %}
   <div class="form-grid">
@@ -47,9 +48,9 @@
   </div>
 </form>
 {% if oob %}
-{# Проект создан: обновляем таблицу (с текущими фильтрами), внимание и деньги OOB-свопом. #}
+{# Проект создан: обновляем доску (в текущем виде и с фильтрами), внимание и деньги OOB-свопом. #}
 <div id="projects-table-box" hx-swap-oob="innerHTML">
-  {% include "partials/project_table.html" %}
+  {% include "partials/summary_projects.html" %}
 </div>
 {% with portfolio_oob = True %}{% include "partials/portfolio_totals.html" %}{% endwith %}
 {% with attention_oob = True %}{% include "partials/attention.html" %}{% endwith %}

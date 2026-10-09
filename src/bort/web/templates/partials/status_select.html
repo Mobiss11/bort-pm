@@ -9,8 +9,9 @@
         {% else %}
         hx-target="#projects-table-box" hx-swap="innerHTML"
         {# Фильтры сводки задаются только через URL — форму #filters убрали с экрана,
-           поэтому текущие q/tasks едут явными значениями, а не hx-include. #}
-        hx-vals='{"q": {{ q|default('')|tojson }}, "tasks": {{ tasks_filter|default('')|tojson }}}'
+           поэтому текущие q/tasks едут явными значениями, а не hx-include.
+           Вид «Канбан» добавляется отдельно: список не должен получать лишний view. #}
+        hx-vals='{"q": {{ q|default('')|tojson }}, "tasks": {{ tasks_filter|default('')|tojson }}{% if view == 'kanban' %}, "view": "kanban"{% endif %}}'
         {% endif %}>
   {% for code, title in enums.project_statuses %}
   <option value="{{ code }}" {{ 'selected' if p.status == code else '' }}>{{ title }}</option>

@@ -1,0 +1,10 @@
+{# Закрытые всегда в разметке (сводка обещает два раздела), но свёрнуты:
+   на главном экране это архив, а не работа. #}
+<details class="closed-fold">
+  <summary class="section-title closed-section-title">Закрытые · {{ closed_projects|length }}</summary>
+  <div class="closed-table">
+  {% with projects = closed_projects, closed_section = True %}
+    {% include "partials/project_table_only.html" %}
+  {% endwith %}
+  </div>
+</details>

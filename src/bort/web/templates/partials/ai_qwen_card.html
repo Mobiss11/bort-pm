@@ -1,0 +1,49 @@
+<article class="provider-card" id="qwen-card"
+         {% if 'MacBook' in provider.source %}hx-get="/ui/ai/providers/qwen/refresh" hx-trigger="every 60s" hx-swap="outerHTML"{% endif %}>
+  <header class="provider-card-head">
+    <div class="provider-identity">
+      <span class="provider-mark qwen-mark" aria-hidden="true">Q</span>
+      <div><h2>Qwen Cloud · Token Plan</h2><span>подписка Qwen Cloud</span></div>
+    </div>
+    <span class="source-state state-{{ provider.status }}">
+      {% if provider.status == "available" %}Актуально
+      {% elif provider.status == "auth_required" %}Нужен вход
+      {% elif provider.status == "not_configured" %}Нет снимка
+      {% elif provider.status == "error" %}Ошибка
+      {% else %}Нет данных{% endif %}
+    </span>
+  </header>
+
+  <div class="provider-body">
+    {% if provider.data and provider.data.windows %}
+      {% if provider.data.plan %}<p class="ai-disclaimer">План: {{ provider.data.plan }}{% if provider.data.remaining_days %} · осталось дней: {{ provider.data.remaining_days }}{% endif %}</p>{% endif %}
+      <div class="limit-list">
+      {% for window in provider.data.windows %}
+        <div class="limit-item">
+          <div class="limit-line"><span>{{ window.label }}</span><strong>{{ window.remaining_percent }}% осталось</strong></div>
+          <div class="limit-track" role="progressbar" aria-label="{{ window.label }}: осталось"
+               aria-valuenow="{{ window.remaining_percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ window.remaining_percent }}%"></span></div>
+          {% if window.detail %}<small>{{ window.detail }}</small>{% endif %}
+          {% if window.resets_at %}<small>Сброс: {{ window.resets_at|iso_local }}</small>{% endif %}
+        </div>
+      {% endfor %}
+      </div>
+    {% else %}
+      <div class="provider-empty">{{ provider.message or "Снимок ещё не получен." }}</div>
+    {% endif %}
+    <p class="ai-disclaimer">Кредиты читает снимок консоли Qwen Cloud, который присылает MacBook (<code>scripts/pull_qwencloud_usage.py</code>) — ключ подписки остаток не отдаёт. Устаревший снимок помечается предупреждением.</p>
+  </div>
+
+  <footer class="provider-card-foot">
+    <div class="source-meta">
+      <span>{{ provider.source }}</span>
+      {% if provider.checked_at %}<small>Проверено {{ provider.checked_at|iso_local }}</small>{% endif %}
+      {% if provider.captured_at %}<small>Данные от {{ provider.captured_at|iso_local }}</small>{% endif %}
+    </div>
+    <div class="provider-actions">
+      {% if provider.data and provider.data.console_url %}<a class="btn btn-small" href="{{ provider.data.console_url }}" target="_blank" rel="noopener">Открыть Token Plan</a>{% endif %}
+      <button class="btn btn-small" type="button" hx-post="/ui/ai/providers/qwen/refresh"
+              hx-target="#qwen-card" hx-swap="outerHTML">Обновить</button>
+    </div>
+  </footer>
+</article>

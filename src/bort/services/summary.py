@@ -14,16 +14,9 @@ _SCOPES = {
     "all": "1 = 1",
 }
 
-# «Горящее сверху, потом по приоритету» — раздел 3.4 документа
-_SUMMARY_ORDER = """
-ORDER BY
-    CASE WHEN deadline IS NOT NULL
-          AND julianday(deadline) - julianday(:today) <= 3 THEN 0 ELSE 1 END,
-    priority ASC,
-    CASE WHEN deadline IS NULL THEN 1 ELSE 0 END,
-    deadline ASC,
-    lower(name)
-"""
+# Порядок строк сводки живёт в services/projects.py: ручной sort_order + прежняя
+# автосортировка §3.4. Здесь только ссылка — единый источник для списка и перестановки.
+_SUMMARY_ORDER = projects.EFFECTIVE_ORDER
 
 
 def _resolve_today(today):
@@ -279,18 +272,31 @@ def get_portfolio_totals(conn, *, q: str | None = None, today=None) -> dict:
 
 
 def build_totals(items: list[dict]) -> dict:
-    """Агрегаты только по базовой валюте; чужие валюты исключаются явно."""
+    """Агрегаты только по базовой валюте; чужие валюты и «на обсуждении» исключаются явно.
+
+    «На обсуждении» — ещё не работа: пока проект не взяли в дело, его суммы не
+    попадают в общие деньги (и в маржу), но сам проект остаётся в списке и в
+    счётчике проектов. Исключённые называются по именам, чтобы разница в деньгах
+    не выглядела пропажей.
+    """
     base = config.BASE_CURRENCY
-    included = [p for p in items if p["currency"] == base]
+    money_items = [p for p in items if p["status"] != "discussion"]
+    included = [p for p in money_items if p["currency"] == base]
     excluded = [
         {"id": p["id"], "name": p["name"], "currency": p["currency"]}
-        for p in items
+        for p in money_items
         if p["currency"] != base
+    ]
+    discussion = [
+        {"id": p["id"], "name": p["name"]}
+        for p in items
+        if p["status"] == "discussion" and p["currency"] == base
     ]
     deal_total = sum(p["deal_amount_minor"] for p in included)
     paid_total = sum(p["paid_minor"] for p in included)
     return {
-        "projects_count": len(included),
+        # Счётчик — весь портфель базовой валюты: обсуждение видно, но не в деньгах.
+        "projects_count": len(included) + len(discussion),
         "deal_total_minor": deal_total,
         "paid_total_minor": paid_total,
         "paid_progress": round(paid_total / deal_total * 100) if deal_total else None,
@@ -301,6 +307,7 @@ def build_totals(items: list[dict]) -> dict:
         "hot_count": sum(1 for p in included if p["deadline_state"] == "hot"),
         "currency": base,
         "excluded_projects": excluded,
+        "discussion_projects": discussion,
     }
 
 

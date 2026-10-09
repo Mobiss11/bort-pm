@@ -1,0 +1,45 @@
+<article class="provider-card" id="zai-card">
+  <header class="provider-card-head">
+    <div class="provider-identity">
+      <span class="provider-mark zai-mark" aria-hidden="true">Z</span>
+      <div><h2>Z.AI · GLM</h2><span>Coding Plan</span></div>
+    </div>
+    <span class="source-state state-{{ provider.status }}">
+      {% if provider.status == "available" %}Снимок получен
+      {% elif provider.status == "not_configured" %}Не настроено
+      {% elif provider.status == "error" %}Ошибка
+      {% else %}Нет данных{% endif %}
+    </span>
+  </header>
+
+  <div class="provider-body">
+    {% if provider.data and provider.data.windows %}
+      {% if provider.data.plan %}<p class="ai-disclaimer">План: {{ provider.data.plan }}</p>{% endif %}
+      <div class="limit-list">
+      {% for window in provider.data.windows %}
+        <div class="limit-item">
+          <div class="limit-line"><span>{{ window.label }}</span><strong>{{ window.used_percent }}% использовано</strong></div>
+          <div class="limit-track" role="progressbar" aria-label="{{ window.label }}: использовано"
+               aria-valuenow="{{ window.used_percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ window.used_percent }}%"></span></div>
+          {% if window.credits_total %}<small>Кредиты: {{ "{:,}".format(window.credits_used).replace(",", " ") }} / {{ "{:,}".format(window.credits_total).replace(",", " ") }}</small>{% endif %}
+          {% if window.resets_at %}<small>Сброс: {{ window.resets_at|iso_local }}</small>{% endif %}
+        </div>
+      {% endfor %}
+      </div>
+    {% else %}
+      <div class="provider-empty">{{ provider.message or "Нажмите «Обновить», чтобы прочитать остаток Coding Plan." }}</div>
+    {% endif %}
+    <p class="ai-disclaimer">Источник — эндпоинт панели Z.AI, а не публичный API: формат может измениться. Ключ хранится в окружении Борта.</p>
+  </div>
+
+  <footer class="provider-card-foot">
+    <div class="source-meta">
+      <span>{{ provider.source }}</span>
+      {% if provider.checked_at %}<small>Проверено {{ provider.checked_at|iso_local }}</small>{% endif %}
+      {% if provider.captured_at %}<small>Данные от {{ provider.captured_at|iso_local }}</small>{% endif %}
+      {% if provider.message and provider.data %}<small class="alert-orange">{{ provider.message }}</small>{% endif %}
+    </div>
+    <button class="btn btn-small" type="button" hx-post="/ui/ai/providers/zai/refresh"
+            hx-target="#zai-card" hx-swap="outerHTML">Обновить</button>
+  </footer>
+</article>

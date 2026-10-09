@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}AI — Борт{% endblock %}
+{% block content %}
+<div class="page-head ai-page-head">
+  <div>
+    <h1>AI</h1>
+    <p class="muted ai-lead">Расходы, запросы и доступные лимиты без сохранения промптов и ответов.</p>
+  </div>
+  <button class="btn btn-primary" type="button"
+          hx-post="/ui/ai/refresh-all" hx-target="#provider-grid" hx-swap="outerHTML">Обновить всё</button>
+</div>
+
+<section class="ai-stats" aria-label="Использование AI сегодня">
+  <article class="ai-stat-card">
+    <span class="ai-stat-label">Запросов сегодня</span>
+    <strong class="ai-stat-value">{{ usage.today.requests }}</strong>
+    <span class="ai-stat-note">{{ usage.today.errors }} с ошибкой</span>
+  </article>
+  <article class="ai-stat-card">
+    <span class="ai-stat-label">Токенов сегодня</span>
+    <strong class="ai-stat-value">{{ "{:,}".format(usage.today.input_tokens + usage.today.output_tokens).replace(",", " ") }}</strong>
+    <span class="ai-stat-note">вход + выход</span>
+  </article>
+  <article class="ai-stat-card ai-stat-accent">
+    <span class="ai-stat-label">Расход сегодня</span>
+    <strong class="ai-stat-value">{{ usage.today.cost_microusd|usd_micros }}</strong>
+    <span class="ai-stat-note">за 7 дней: {{ usage.seven_days.cost_microusd|usd_micros }}</span>
+  </article>
+</section>
+
+{% include "partials/ai_provider_grid.html" %}
+
+<section class="ai-log-section">
+  <div class="ai-section-head">
+    <div>
+      <h2>Последние запросы</h2>
+      <p>Метаданные поступают через <code>POST /api/v1/ai/usage</code>.</p>
+    </div>
+    <a class="btn btn-small" href="/docs#/ai">API</a>
+  </div>
+  <div class="table-scroll">
+    <table class="ai-log">
+      <thead>
+        <tr>
+          <th>Время</th><th>Агент</th><th>Провайдер / модель</th>
+          <th class="num">Токены</th><th class="num">Стоимость</th><th>Статус</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for event in recent %}
+        <tr>
+          <td data-label="Время" class="nowrap">{{ event.occurred_at|iso_local }}</td>
+          <td data-label="Агент">
+            <strong>{{ event.agent }}</strong>
+            {% if event.project_name %}<span class="ai-row-sub">{{ event.project_name }}</span>{% endif %}
+          </td>
+          <td data-label="Провайдер / модель">
+            <span class="provider-name">{{ event.provider }}</span>
+            <span class="ai-row-sub">{{ event.model }}</span>
+          </td>
+          <td data-label="Токены" class="num">{{ "{:,}".format(event.input_tokens + event.output_tokens).replace(",", " ") }}</td>
+          <td data-label="Стоимость" class="num">{{ event.cost_microusd|usd_micros }}</td>
+          <td data-label="Статус">
+            <span class="ai-status status-{{ event.status }}">{{ "Готово" if event.status == "success" else "Ошибка" }}</span>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="empty">Запросов пока нет. Подключите клиент к endpoint журнала.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

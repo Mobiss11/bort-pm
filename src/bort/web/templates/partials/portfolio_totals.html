@@ -34,6 +34,9 @@
     {% if t.hot_open_count %}
     <span class="chip chip-orange">Горит: {{ t.hot_open_count }}</span>
     {% endif %}
+    {% if t.discussion_projects %}
+    <span class="chip chip-muted">На обсуждении — не в деньгах: {% for e in t.discussion_projects %}{{ e.name }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
+    {% endif %}
     {% if t.excluded_projects %}
     <span class="chip chip-muted">Вне агрегатов ({{ t.currency }}): {% for e in t.excluded_projects %}{{ e.name }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
     {% endif %}

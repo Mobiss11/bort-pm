@@ -16,7 +16,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .. import config, db, errors
 from . import deps, pages
-from .api import chats, expenses, meta, payments, people, projects, summary, tasks
+from .api import ai, chats, expenses, meta, payments, people, projects, summary, tasks
 
 
 def _error_content(code: str, message: str, details: dict | None = None) -> dict:
@@ -34,6 +34,7 @@ def create_app() -> FastAPI:
     app.include_router(chats.router)
     app.include_router(people.router)
     app.include_router(meta.router)
+    app.include_router(ai.router)
     app.include_router(pages.router)
 
     static_dir = Path(__file__).parent / "static"

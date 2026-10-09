@@ -1,0 +1,39 @@
+<article class="provider-card" id="deepseek-card">
+  <header class="provider-card-head">
+    <div class="provider-identity">
+      <span class="provider-mark deepseek-mark" aria-hidden="true">D</span>
+      <div><h2>DeepSeek</h2><span>API-баланс</span></div>
+    </div>
+    <span class="source-state state-{{ provider.status }}">
+      {% if provider.status == "available" %}Актуально{% elif provider.status == "not_configured" %}Не настроено{% elif provider.status == "error" %}Ошибка{% else %}Нет данных{% endif %}
+    </span>
+  </header>
+
+  <div class="provider-body">
+    {% if provider.data and provider.data.balances %}
+      <div class="balance-list">
+      {% for balance in provider.data.balances %}
+        <div class="balance-item">
+          <span>{{ balance.currency }}</span>
+          <strong>{{ balance.total_balance }}</strong>
+          <small>бонус: {{ balance.granted_balance }} · пополнено: {{ balance.topped_up_balance }}</small>
+        </div>
+      {% endfor %}
+      </div>
+    {% else %}
+      <div class="provider-empty">{{ provider.message or "Нажмите «Обновить», чтобы получить баланс." }}</div>
+    {% endif %}
+  </div>
+
+  <footer class="provider-card-foot">
+    <div class="source-meta">
+      <span>{{ provider.source }}</span>
+      {% if provider.checked_at %}<small>Проверено {{ provider.checked_at|iso_local }}</small>{% endif %}
+      {% if provider.captured_at %}<small>Данные от {{ provider.captured_at|iso_local }}</small>{% endif %}
+      {% if provider.message and provider.data %}<small class="alert-orange">{{ provider.message }}</small>{% endif %}
+    </div>
+    <button class="btn btn-small" type="button"
+            hx-post="/ui/ai/providers/deepseek/refresh"
+            hx-target="#deepseek-card" hx-swap="outerHTML">Обновить</button>
+  </footer>
+</article>

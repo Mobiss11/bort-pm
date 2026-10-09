@@ -1,0 +1,47 @@
+<article class="provider-card" id="claude-card">
+  <header class="provider-card-head">
+    <div class="provider-identity">
+      <span class="provider-mark claude-mark" aria-hidden="true">C</span>
+      <div><h2>Claude</h2><span>подписка · окна 5 ч / 7 д</span></div>
+    </div>
+    <span class="source-state state-{{ provider.status }}">
+      {% if provider.status == "available" %}Актуально
+      {% elif provider.status == "not_configured" %}Не настроено
+      {% elif provider.status == "error" %}Ошибка
+      {% else %}Нет данных{% endif %}
+    </span>
+  </header>
+
+  <div class="provider-body">
+    {% if provider.data and provider.data.windows %}
+      <div class="limit-list">
+      {% for window in provider.data.windows %}
+        <div class="limit-item">
+          <div class="limit-line"><span>{{ window.label }}</span><strong>{{ window.used_percent }}% использовано</strong></div>
+          <div class="limit-track" role="progressbar" aria-label="Claude, окно {{ window.label }}: использовано"
+               aria-valuenow="{{ window.used_percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ window.used_percent }}%"></span></div>
+          {% if window.detail %}<small>{{ window.detail|capitalize }}</small>{% endif %}
+          {% if window.resets_at %}<small>Сброс: {{ window.resets_at|iso_local }}</small>{% endif %}
+        </div>
+      {% endfor %}
+      </div>
+      {% if provider.data.cache_age %}
+      <p class="ai-disclaimer">Возраст кэша демона: {{ provider.data.cache_age }} — обновляется заголовками ответов Claude.</p>
+      {% endif %}
+    {% else %}
+      <div class="provider-empty">{{ provider.message or "Нажмите «Обновить», чтобы прочитать окна подписки." }}</div>
+    {% endif %}
+    <p class="ai-disclaimer">Источник — локальный демон kraube (OAuth-подписка, mini): без обращений к Anthropic и без хранения промптов.</p>
+  </div>
+
+  <footer class="provider-card-foot">
+    <div class="source-meta">
+      <span>{{ provider.source }}</span>
+      {% if provider.checked_at %}<small>Проверено {{ provider.checked_at|iso_local }}</small>{% endif %}
+      {% if provider.captured_at %}<small>Данные от {{ provider.captured_at|iso_local }}</small>{% endif %}
+      {% if provider.message and provider.data %}<small class="alert-orange">{{ provider.message }}</small>{% endif %}
+    </div>
+    <button class="btn btn-small" type="button" hx-post="/ui/ai/providers/claude/refresh"
+            hx-target="#claude-card" hx-swap="outerHTML">Обновить</button>
+  </footer>
+</article>

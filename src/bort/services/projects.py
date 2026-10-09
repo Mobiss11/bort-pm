@@ -3,7 +3,22 @@
 from .. import dates, errors
 from ..models import ProjectCreate, ProjectUpdate, validate_payload
 
-_STATUSES = {"idea", "active", "paused", "closed"}
+_STATUSES = {"idea", "discussion", "active", "review", "payment", "paused", "closed"}
+
+# Порядок строк сводки: сначала ручной (sort_order), затем прежняя автосортировка
+# «горящее сверху, потом по приоритету» (раздел 3.4 документа). NULL — не тронутый
+# перетаскиванием проект, такие идут после расставленных вручную.
+EFFECTIVE_ORDER = """
+ORDER BY
+    CASE WHEN sort_order IS NULL THEN 1 ELSE 0 END,
+    sort_order ASC,
+    CASE WHEN deadline IS NOT NULL
+          AND julianday(deadline) - julianday(:today) <= 3 THEN 0 ELSE 1 END,
+    priority ASC,
+    CASE WHEN deadline IS NULL THEN 1 ELSE 0 END,
+    deadline ASC,
+    lower(name)
+"""
 
 _SORTS = {
     "priority": "priority ASC, lower(name) ASC",
@@ -124,4 +139,69 @@ def update_project(conn, project_id: int, data: dict) -> dict:
 def delete_project(conn, project_id: int) -> None:
     get_project(conn, project_id)
     conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+    conn.commit()
+
+
+# --- Ручной порядок сводки (перетаскивание в списке) ---
+
+
+def ordered_ids(conn) -> list[int]:
+    """id всех проектов в фактическом порядке сводки (тот же ORDER BY, что в услугах)."""
+    rows = conn.execute(
+        f"SELECT id FROM projects {EFFECTIVE_ORDER}",
+        {"today": dates.today_local().isoformat()},
+    ).fetchall()
+    return [row["id"] for row in rows]
+
+
+def has_manual_order(conn) -> bool:
+    return (
+        conn.execute("SELECT 1 FROM projects WHERE sort_order IS NOT NULL LIMIT 1").fetchone()
+        is not None
+    )
+
+
+def reorder_projects(conn, ids: list) -> None:
+    """Переставить проекты так, как их видел человек.
+
+    Переданный список занимает свои же места в общем порядке (слоты): скрытые
+    фильтром проекты не переезжают к краю, а сохраняют позиции. После этого у всех
+    проектов появляется явный sort_order — сверху ровно тот порядок, что на экране.
+    """
+    parsed: list[int] = []
+    for raw in ids:
+        try:
+            parsed.append(int(raw))
+        except (TypeError, ValueError) as e:
+            raise errors.ValidationError(
+                "Некорректный список проектов", details={"ids": list(ids)}
+            ) from e
+    if not parsed:
+        raise errors.ValidationError("Список проектов пуст")
+    if len(set(parsed)) != len(parsed):
+        raise errors.ValidationError("В списке проектов есть повторы", details={"ids": parsed})
+
+    current = ordered_ids(conn)
+    known = set(current)
+    unknown = [pid for pid in parsed if pid not in known]
+    if unknown:
+        raise errors.ValidationError(
+            f"Проекты не найдены: {', '.join(map(str, unknown))}", details={"ids": unknown}
+        )
+
+    picked = set(parsed)
+    slots = [index for index, pid in enumerate(current) if pid in picked]
+    new_order = list(current)
+    for slot, pid in zip(slots, parsed):
+        new_order[slot] = pid
+    conn.executemany(
+        "UPDATE projects SET sort_order = ? WHERE id = ?",
+        [(position, pid) for position, pid in enumerate(new_order, start=1)],
+    )
+    conn.commit()
+
+
+def reset_order(conn) -> None:
+    """Вернуть автосортировку: снять ручные места со всех проектов."""
+    conn.execute("UPDATE projects SET sort_order = NULL")
     conn.commit()

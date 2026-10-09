@@ -1,0 +1,45 @@
+<article class="provider-card" id="codex-card"
+         {% if 'MacBook' in provider.source %}hx-get="/ui/ai/providers/codex/refresh" hx-trigger="every 60s" hx-swap="outerHTML"{% endif %}>
+  <header class="provider-card-head">
+    <div class="provider-identity">
+      <span class="provider-mark codex-mark" aria-hidden="true">G</span>
+      <div><h2>GPT · Codex</h2><span>подписка через OpenCode</span></div>
+    </div>
+    <span class="source-state state-{{ provider.status }}">
+      {% if provider.status == "available" %}Снимок получен{% elif provider.status == "unavailable" %}Недоступно{% else %}Нет данных{% endif %}
+    </span>
+  </header>
+
+  <div class="provider-body">
+    {% if provider.data and provider.data.buckets %}
+      <p class="ai-disclaimer">Локальный Codex CLI: {{ provider.data.account_email or 'учётная запись не указана' }}{% if provider.data.plan_type %} · {{ provider.data.plan_type }}{% endif %}. Сверьте с GPT-подключением OpenCode.</p>
+      <div class="limit-list">
+      {% for bucket in provider.data.buckets %}
+        {% for window in [bucket.primary, bucket.secondary] %}
+          {% if window %}
+          <div class="limit-item">
+            <div class="limit-line"><span>{{ bucket.name }} · {{ window.window_minutes or '?' }} мин</span><strong>{{ window.remaining_percent }}% осталось</strong></div>
+            <div class="limit-track" role="progressbar" aria-label="{{ bucket.name }}: осталось" aria-valuenow="{{ window.remaining_percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ window.remaining_percent }}%"></span></div>
+            {% if window.resets_at %}<small>Сброс: {{ window.resets_at|iso_local }}</small>{% endif %}
+          </div>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      </div>
+    {% else %}
+      <div class="provider-empty">{{ provider.message or "Нажмите «Обновить» для чтения лимитов локального Codex CLI." }}</div>
+    {% endif %}
+    <p class="ai-disclaimer">OpenCode не отдаёт остаток подписки напрямую. Если в нём другой аккаунт, эти цифры не относятся к нему. На mini кнопка «Обновить» просит MacBook перечитать лимиты (обычно ≤ 30 секунд), а сама карточка подтягивает снимок раз в минуту; MacBook также обновляет их сам, если снимок старше 15 минут.</p>
+  </div>
+
+  <footer class="provider-card-foot">
+    <div class="source-meta">
+      <span>{{ provider.source }}</span>
+      {% if provider.checked_at %}<small>Проверено {{ provider.checked_at|iso_local }}</small>{% endif %}
+      {% if provider.captured_at %}<small>Данные от {{ provider.captured_at|iso_local }}</small>{% endif %}
+      {% if provider.message and provider.data %}<small class="alert-orange">{{ provider.message }}</small>{% endif %}
+    </div>
+    <button class="btn btn-small" type="button" hx-post="/ui/ai/providers/codex/refresh"
+            hx-target="#codex-card" hx-swap="outerHTML">Обновить</button>
+  </footer>
+</article>

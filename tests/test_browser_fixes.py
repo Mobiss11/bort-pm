@@ -47,7 +47,7 @@ def test_project_new_form_enum_options_nonblank(client):
     html = client.get("/ui/projects/new").text
     assert _blank_options(html) == []
     status = re.search(r'<select name="status">.*?</select>', html, re.S).group(0)
-    assert [v for v, _ in _options(status)] == ["idea", "active", "paused", "closed"]
+    assert [v for v, _ in _options(status)] == ["idea", "discussion", "active", "review", "payment", "paused", "closed"]
     prio = re.search(r'<select name="priority">.*?</select>', html, re.S).group(0)
     assert _selected_values(prio) == ["2"]
 

@@ -1,0 +1,9 @@
+{# Человеческая подпись команды к Beads: что именно уйдёт на MacBook. #}
+{% set status_ru = {'open': 'открыта', 'in_progress': 'в работе', 'blocked': 'заблокирована', 'deferred': 'отложена', 'closed': 'закрыта'} %}
+{%- if c.kind == 'create' %}Новая задача «{{ c.payload.title }}» ({{ c.payload.type }}, P{{ c.payload.priority }})
+{%- elif c.kind == 'update' %}{{ c.payload.issue }}: {% if c.payload.status %}статус {{ status_ru.get(c.payload.status, c.payload.status) }}{% endif %}{% if c.payload.status and c.payload.priority is not none %}, {% endif %}{% if c.payload.priority is not none %}приоритет P{{ c.payload.priority }}{% endif %}
+{%- elif c.kind == 'close' %}Закрыть {{ c.payload.issue }}
+{%- elif c.kind == 'reopen' %}Вернуть в работу {{ c.payload.issue }}
+{%- elif c.kind == 'sync' %}Синхронизация с MacBook
+{%- else %}{{ c.kind }}
+{%- endif %}

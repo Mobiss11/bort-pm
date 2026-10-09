@@ -20,6 +20,12 @@
       </svg>
       <span>Борт</span>
     </a>
+    <nav class="topnav" aria-label="Основная навигация">
+      <a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}>Сводка</a>
+      <a href="/work" {% if request.url.path == '/work' %}aria-current="page"{% endif %}>Работа</a>
+      <a href="/ai" {% if request.url.path == '/ai' %}aria-current="page"{% endif %}>AI</a>
+      <a href="/tasks" {% if request.url.path == '/tasks' %}aria-current="page"{% endif %}>Задачи</a>
+    </nav>
   </header>
   <main class="content">
     {% block content %}{% endblock %}

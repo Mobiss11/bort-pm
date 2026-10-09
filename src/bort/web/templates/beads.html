@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Задачи — Борт{% endblock %}
+{% block content %}
+<div class="page-head beads-page-head">
+  <div>
+    <h1>Задачи</h1>
+    <p class="muted beads-lead">Проекты и задачи из Beads: задачи можно создавать и менять прямо здесь — команды выполняет MacBook, где лежат базы Beads.</p>
+  </div>
+</div>
+<div id="beads-content" aria-live="polite" {% if not beads %}hx-get="/ui/beads" hx-trigger="load" hx-swap="innerHTML" aria-busy="true"{% endif %}>
+  {% if beads %}
+    {% include "partials/beads_content.html" %}
+  {% else %}
+    <div class="empty-soft beads-loading">Загружаем проекты… <a href="/tasks?full=1">Открыть без JavaScript</a></div>
+  {% endif %}
+</div>
+{% endblock %}

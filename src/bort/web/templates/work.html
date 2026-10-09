@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Работа — Борт{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Работа</h1>
+  <button class="btn btn-primary"
+          hx-get="/ui/work/new" hx-target="#work-form-box" hx-swap="innerHTML">+ Проект</button>
+</div>
+
+<div id="work-totals-box">
+  {% include "partials/work_totals.html" %}
+</div>
+
+<div id="work-form-box" class="form-box"></div>
+
+<div id="work-table-box">
+  {% include "partials/work_table.html" %}
+</div>
+{% endblock %}

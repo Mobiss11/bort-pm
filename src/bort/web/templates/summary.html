@@ -4,7 +4,7 @@
 <div class="page-head">
   <h1>Сводка</h1>
   <button class="btn btn-primary"
-          hx-get="/ui/projects/new" hx-target="#project-form-box" hx-swap="innerHTML">+ Проект</button>
+          hx-get="/ui/projects/new{{ '?view=kanban' if view == 'kanban' else '' }}" hx-target="#project-form-box" hx-swap="innerHTML">+ Проект</button>
 </div>
 
 {% include "partials/portfolio_totals.html" %}
@@ -15,7 +15,19 @@
 
 {% include "partials/summary_filter_state.html" %}
 
+<div class="summary-viewbar">
+  <div class="subtabs" role="group" aria-label="Вид сводки">
+    <a class="subtab{% if view != 'kanban' %} active{% endif %}"
+       href="{{ '/'|url_query({'q': q, 'tasks': tasks_filter}) }}"
+       {% if view != 'kanban' %}aria-current="page"{% endif %}>Список</a>
+    <a class="subtab{% if view == 'kanban' %} active{% endif %}"
+       href="{{ '/'|url_query({'view': 'kanban', 'q': q, 'tasks': tasks_filter}) }}"
+       {% if view == 'kanban' %}aria-current="page"{% endif %}>Канбан</a>
+  </div>
+  <span class="muted summary-viewhint">{% if view != 'kanban' %}Порядок в списке меняется перетаскиванием за ручку{% else %}Карточка меняет статус прямо в колонке{% endif %}</span>
+</div>
+
 <div id="projects-table-box">
-  {% include "partials/project_table.html" %}
+  {% include "partials/summary_projects.html" %}
 </div>
 {% endblock %}

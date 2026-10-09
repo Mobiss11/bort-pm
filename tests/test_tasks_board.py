@@ -38,28 +38,31 @@ def test_return_to_whitelist(client):
     assert "evil.com" not in r.text
     # путь, отличный от сводки, больше не принимается — возвращаемся на '/'
     r = client.get(f"/projects/{p['id']}", params={"return_to": "/tasks?view=list&q=x"})
-    assert 'href="/tasks' not in r.text
+    assert 'href="/tasks?view=list&amp;q=x"' not in r.text
+    assert 'href="/"' in r.text
     # дефолт — сводка
     r = client.get(f"/projects/{p['id']}")
     assert 'href="/"' in r.text
 
 
-def test_project_row_next_step_and_cta(client):
+def test_project_row_next_step_without_add_task_cta(client):
+    """«+ Задача» из строки убрана: в строке остаётся только кнопка «Ещё»."""
     p1 = _mk_project(client, "Строчный")
     _mk_task(client, p1["id"], "Первая строчная задача")
     p2 = _mk_project(client, "СтрочныйПустой")
     html = client.get("/").text
     assert 'data-label="Следующий шаг"' in html
     assert "Первая строчная задача" in html
-    assert "+ Задача" in html
-    # CTA ровно у проекта без незакрытых задач — в таблице открытых
+    assert "+ Задача" not in html
+    assert 'class="drag-handle"' in html
     open_tbody = re.search(r'<tbody id="projects-tbody">(.*?)</tbody>', html, re.S).group(1)
-    assert open_tbody.count("+ Задача") == 1
     rows = re.findall(r'<tr class="project-row.*?</tr>', open_tbody, re.S)
     row_with_task = next(r for r in rows if ">Строчный</a>" in r)
     row_empty = next(r for r in rows if f"/projects/{p2['id']}" in r)
-    assert "+ Задача" not in row_with_task
-    assert "+ Задача" in row_empty
+    assert "Первая строчная задача" in row_with_task
+    # проект без незакрытых задач больше не зовёт «+ Задача»: пустой шаг — прочерк
+    assert '<span class="muted">—</span>' in row_empty
+    assert 'class="drag-handle"' in row_with_task and 'class="drag-handle"' in row_empty
 
 
 def test_summary_filters_visible_in_url_and_state(client):

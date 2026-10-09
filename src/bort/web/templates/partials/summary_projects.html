@@ -1,0 +1,26 @@
+{# Доска сводки в выбранном виде («Список» или «Канбан»). Вид задаётся ссылками
+   ?view=; после перестановки и правок сервер возвращает этот же фрагмент целиком,
+   поэтому ручной порядок и кнопка сброса всегда отражают фактическое состояние. #}
+{% if manual_order %}
+<div class="board-tools">
+  <span class="muted">Порядок проектов: вручную{% if view == 'kanban' %} · меняется в виде «Список»{% endif %}</span>
+  <button class="btn btn-small" hx-post="/ui/projects/reorder/reset"
+          hx-vals='{"view": {{ (view or "list")|tojson }}, "q": {{ q|default('')|tojson }}, "tasks": {{ tasks_filter|default('')|tojson }}}'
+          hx-target="#projects-table-box" hx-swap="innerHTML">Вернуть автосортировку</button>
+</div>
+{% endif %}
+{% if view == 'kanban' %}
+{% include "partials/summary_kanban.html" %}
+{% else %}
+{% include "partials/project_table.html" %}
+{% endif %}
+{% if state_oob %}
+{% include "partials/summary_filter_state.html" %}
+{% endif %}
+{% if portfolio_oob %}
+{% include "partials/portfolio_totals.html" %}
+{% endif %}
+{% if attention_oob %}
+{% include "partials/attention.html" %}
+{% endif %}
+<p id="summary-live" class="visually-hidden" aria-live="polite"></p>

@@ -1,0 +1,19 @@
+{# Карточка проекта в канбане сводки: те же числа, что и в строке списка:
+   статус правится на месте, оплата, дедлайн, следующая задача и прогресс. #}
+{% set card_back = '/'|return_to({'view': ('kanban' if view == 'kanban' else ''), 'q': q|default(''), 'tasks': tasks_filter|default('')}) %}
+<article class="sboard-card st-{{ p.deadline_state }}" data-project-id="{{ p.id }}">
+  <div class="sboard-card-top">
+    <a class="project-link" href="/projects/{{ p.id }}?return_to={{ card_back }}">{{ p.name }}</a>
+    <span class="prio-tag prio-{{ p.priority }}" title="Приоритет: {{ p.priority|label('priorities') }}">P{{ p.priority }}</span>
+  </div>
+  <div class="sboard-meta">{% include "partials/status_select.html" %}</div>
+  <div class="sboard-line"><span class="muted">Дедлайн:</span> {% include "partials/deadline_view.html" %}</div>
+  <div class="sboard-pay">{% include "partials/pay_cell.html" %}</div>
+  <div class="sboard-line"><span class="muted">Задачи:</span> {{ p.tasks_done|progress(p.tasks_total) }}</div>
+  <div class="sboard-next muted">
+    {% if p.next_task %}
+    <span class="next-step">{{ p.next_task.title }}</span>
+    <span class="next-status">{{ p.next_task.status|label('task_statuses') }}</span>
+    {% else %}—{% endif %}
+  </div>
+</article>

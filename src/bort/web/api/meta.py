@@ -8,7 +8,10 @@ router = APIRouter(prefix="/api/v1", tags=["meta"])
 ENUMS = {
     "project_statuses": [
         ("idea", "Идея"),
+        ("discussion", "На обсуждении"),
         ("active", "В работе"),
+        ("review", "На проверке"),
+        ("payment", "Ожидаем оплату"),
         ("paused", "На паузе"),
         ("closed", "Закрыт"),
     ],

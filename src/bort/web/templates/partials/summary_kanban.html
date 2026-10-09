@@ -1,0 +1,17 @@
+{# Канбан сводки: колонки по рабочим статусам проекта. Перетаскивания карточек
+   здесь нет — порядок строк задаётся в виде «Список», а статус меняется в карточке
+   тем же селектом, что и в строке. Архив — свёрнутым блоком ниже. #}
+<h2 class="section-title">Открытые · {{ projects|length }}</h2>
+<div class="summary-kanban">
+  {% for col in kanban_columns %}
+  <section class="sboard-col" data-status="{{ col.code }}" aria-label="{{ col.label }}">
+    <h3 class="sboard-col-head"><span>{{ col.label }}</span><span class="sboard-count">{{ col.projects|length }}</span></h3>
+    {% for p in col.projects %}
+    {% include "partials/project_card.html" %}
+    {% else %}
+    <p class="sboard-empty muted">—</p>
+    {% endfor %}
+  </section>
+  {% endfor %}
+</div>
+{% include "partials/closed_fold.html" %}

@@ -22,7 +22,7 @@
       {% if p.next_task %}
       <span class="muted">следующий шаг: {{ p.next_task.title }}</span>
       {% else %}
-      <a class="btn btn-small" href="/projects/{{ p.id }}?return_to={{ attention_back }}">+ Задача</a>
+      <span class="muted">нет открытых задач</span>
       {% endif %}
     </li>
     {% endfor %}
