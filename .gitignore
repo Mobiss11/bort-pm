@@ -9,3 +9,7 @@ __pycache__/
 .env
 .DS_Store
 .claude/
+opencode.json
+.serena/
+graphify-out/
+context_portal/
