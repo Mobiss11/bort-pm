@@ -22,7 +22,10 @@
   </div>
   {% endif %}
   <div class="pf-secondary">
-    <span class="pf-mini"><span class="muted">Стоимость</span> <b>{{ p.deal_amount_minor|rub_short(p.currency) }}</b></span>
+    <span class="pf-mini"><span class="muted">Стоимость</span> <b>{{ p.deal_amount_minor|rub_short(p.currency) }}</b>
+      <button type="button" class="btn btn-tiny deal-edit-btn" aria-label="Изменить стоимость проекта"
+              hx-get="/ui/projects/{{ project_id }}/deal/edit"
+              hx-target="#project-money" hx-swap="outerHTML">Изменить</button></span>
     <span class="pf-mini"><span class="muted">Затраты</span> <b>{{ s.expenses_minor|rub_short(p.currency) }}</b></span>
     <span class="pf-mini"><span class="muted">Маржа</span> <b class="{{ 'negative' if s.margin_minor < 0 else '' }}">{{ s.margin_minor|rub_short(p.currency) }}</b></span>
   </div>

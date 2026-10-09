@@ -1,0 +1,19 @@
+{# Инлайн-правка «Стоимости» проекта: форма приезжает на место панели денег
+   (#project-money) и уезжает обратно той же панелью после сохранения/отмены. #}
+<section class="portfolio project-money deal-edit" id="project-money" aria-label="Деньги проекта">
+  <form class="deal-edit-form" hx-post="/ui/projects/{{ project_id }}/deal"
+        hx-target="#project-money" hx-swap="outerHTML">
+    {% if form_error %}<div class="form-error" role="alert">{{ form_error }}</div>{% endif %}
+    <label class="deal-edit-field" for="deal-amount">Стоимость, {{ p.currency if p.currency != 'RUB' else '₽' }}
+      <input id="deal-amount" name="deal" inputmode="decimal" autocomplete="off"
+             aria-label="Стоимость проекта"
+             value="{{ form_values.get('deal', value) }}">
+    </label>
+    <div class="deal-edit-actions">
+      <button type="submit" class="btn btn-primary btn-small">Сохранить</button>
+      <button type="button" class="btn btn-small"
+              hx-get="/ui/projects/{{ project_id }}/money"
+              hx-target="#project-money" hx-swap="outerHTML">Отмена</button>
+    </div>
+  </form>
+</section>

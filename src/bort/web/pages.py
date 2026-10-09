@@ -454,6 +454,63 @@ def _payments_ctx(
     }
 
 
+# --- htmx-партиалы: инлайн-правка «Стоимости» проекта ---
+
+
+def _human_amount(minor: int) -> str:
+    """Копейки → человеческая форма для поля ввода: «150 000» / «150 000,50», ноль → «0»."""
+    minor = int(minor or 0)
+    units = f"{minor // 100:,}".replace(",", " ")
+    return units if minor % 100 == 0 else f"{units},{minor % 100:02d}"
+
+
+def _money_ctx(conn, project_id: int) -> dict:
+    project = projects_svc.get_project(conn, project_id)
+    return {
+        "project_id": project_id,
+        "p": project,
+        "s": summary_svc.get_project_summary(conn, project_id),
+        "money_oob": False,
+    }
+
+
+def _deal_edit_ctx(conn, project_id: int, form_error: str | None = None, values: dict | None = None) -> dict:
+    project = projects_svc.get_project(conn, project_id)
+    return {
+        "project_id": project_id,
+        "p": project,
+        "value": _human_amount(project["deal_amount_minor"]),
+        "form_error": form_error,
+        "form_values": values or {},
+    }
+
+
+@router.get("/ui/projects/{project_id}/deal/edit", response_class=HTMLResponse)
+def ui_project_deal_edit(request: Request, project_id: int, conn=Depends(get_conn)):
+    return _render(request, "partials/project_deal_edit.html", _deal_edit_ctx(conn, project_id))
+
+
+@router.get("/ui/projects/{project_id}/money", response_class=HTMLResponse)
+def ui_project_money(request: Request, project_id: int, conn=Depends(get_conn)):
+    """«Отмена» инлайн-правки: вернуть обычную панель денег."""
+    return _render(request, "partials/project_money.html", _money_ctx(conn, project_id))
+
+
+@router.post("/ui/projects/{project_id}/deal", response_class=HTMLResponse)
+async def ui_project_deal_save(request: Request, project_id: int, conn=Depends(get_conn)):
+    form = await request.form()
+    raw = str(form.get("deal", "")).strip()
+    try:
+        minor = 0 if not raw else money.to_minor(raw)
+        if minor < 0:
+            raise errors.ValidationError("Стоимость не может быть отрицательной")
+        projects_svc.update_project(conn, project_id, {"deal_amount_minor": minor})
+    except (errors.BortError, ValueError) as e:
+        ctx = _deal_edit_ctx(conn, project_id, _err_message(e), {"deal": raw})
+        return _render(request, "partials/project_deal_edit.html", ctx)
+    return _render(request, "partials/project_money.html", _money_ctx(conn, project_id))
+
+
 @router.get("/ui/projects/{project_id}/payments", response_class=HTMLResponse)
 def ui_payments_block(request: Request, project_id: int, conn=Depends(get_conn)):
     return _render(request, "partials/payments_block.html", _payments_ctx(conn, project_id, money_oob=True))

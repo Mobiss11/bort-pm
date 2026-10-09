@@ -589,6 +589,20 @@ body.is-loading .global-spinner { opacity: 1; animation: spin .7s linear infinit
 .pf-mini b { font-weight: 650; }
 .pf-mini b.negative { color: var(--red); }
 .project-money { margin-bottom: 16px; }
+.deal-edit-btn { margin-left: 6px; }
+.deal-edit-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; }
+.deal-edit-field {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 12px; color: var(--muted); min-width: 0;
+}
+.deal-edit-field input {
+  width: min(220px, 100%); min-width: 0; height: 36px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font: inherit; color: var(--text); background: var(--surface);
+}
+.deal-edit-field input:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
+.deal-edit-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.deal-edit .form-error { flex: 1 1 100%; margin-bottom: 0; }
 
 /* ============ Оплата в строке проекта ============ */
 th.col-pay { min-width: 190px; }
