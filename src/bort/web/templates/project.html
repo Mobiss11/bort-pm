@@ -5,7 +5,13 @@
   <div id="project-head-box">
     {% include "partials/project_head.html" %}
   </div>
-  <a class="btn" href="{{ return_to or '/' }}">← К сводке</a>
+  <div class="form-actions" style="margin-top: 0">
+    <a class="btn" href="{{ return_to or '/' }}">← К сводке</a>
+    <button type="button" class="btn btn-small link-danger"
+            hx-delete="/ui/projects/{{ p.id }}"
+            hx-vals='{"return_to": {{ (return_to or "/")|tojson }}}'
+            hx-confirm="Удалить проект «{{ p.name }}»? Задачи, затраты, оплаты и связи проекта будут удалены безвозвратно.">Удалить</button>
+  </div>
 </div>
 
 {% include "partials/project_money.html" %}

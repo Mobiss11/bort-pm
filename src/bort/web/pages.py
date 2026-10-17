@@ -3,7 +3,7 @@
 from pathlib import Path
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -454,6 +454,29 @@ def project_page(
             "return_to": _safe_return_path(return_to),
         },
     )
+
+
+@router.delete("/ui/projects/{project_id}")
+async def ui_project_delete(request: Request, project_id: int, conn=Depends(get_conn)):
+    """Удалить проект из UI вместе с каскадами (задачи, затраты, оплаты, связи).
+
+    htmx шлёт DELETE с form-encoded телом, юнит-вызовы — query. Цель возврата
+    санитизируется `_safe_return_path`; htmx получает HX-Redirect, обычный
+    переход — 303. Несуществующий проект → NotFound → 404 (глобальный handler).
+    """
+    form = await request.form()
+
+    def pick(key: str) -> str:
+        value = form.get(key)
+        if value is None or str(value) == "":
+            return str(request.query_params.get(key, ""))
+        return str(value)
+
+    target = _safe_return_path(pick("return_to"))
+    projects_svc.delete_project(conn, project_id)
+    if request.headers.get("HX-Request"):
+        return Response(status_code=200, headers={"HX-Redirect": target})
+    return RedirectResponse(target, status_code=303)
 
 
 # --- htmx-партиалы: сводка ---
